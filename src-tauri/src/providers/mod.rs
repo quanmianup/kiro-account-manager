@@ -2,12 +2,12 @@
 // 参考 kiro-batch-login 的结构
 
 mod base;
-mod social;
-mod idc;
 mod factory;
+mod idc;
+mod social;
 pub mod web;
 
-pub use base::{AuthResult, AuthProvider, RefreshMetadata};
-pub use social::SocialProvider;
-pub use idc::IdcProvider;
+pub use base::{AuthProvider, AuthResult, RefreshMetadata};
 pub use factory::*;
+pub use idc::IdcProvider;
+pub use social::SocialProvider;

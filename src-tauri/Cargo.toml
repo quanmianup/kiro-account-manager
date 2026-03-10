@@ -47,6 +47,13 @@ cookie = "0.18"
 dirs = "5"
 rusqlite = { version = "0.32", features = ["bundled"] }
 
+# 邮箱客户端依赖（一键注册功能）
+async-imap = "0.9"
+async-native-tls = "0.5"
+aes-gcm = "0.10"
+async-std = { version = "1.12", features = ["attributes"] }
+futures = "0.3"
+
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
 

@@ -24,7 +24,7 @@
         "width": 1280,
         "minWidth": 1100,
         "minHeight": 650,
-        "visible": false,
+        "visible": true,
         "center": true,
         "decorations": true,
         "shadow": true

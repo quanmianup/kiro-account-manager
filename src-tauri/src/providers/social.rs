@@ -1,12 +1,12 @@
 // Social Provider - Google/Github 登录
 // 参考 kiro-batch-login/src/providers/social-provider.js
 
-use crate::kiro_auth_client::KiroAuthServiceClient;
-use crate::deep_link_handler::{DeepLinkCallbackWaiter, register_waiter};
+use super::{AuthProvider, AuthResult, RefreshMetadata};
 use crate::auth_social;
-use super::{AuthResult, AuthProvider, RefreshMetadata};
-use serde::Deserialize;
+use crate::deep_link_handler::{register_waiter, DeepLinkCallbackWaiter};
+use crate::kiro_auth_client::KiroAuthServiceClient;
 use async_trait::async_trait;
+use serde::Deserialize;
 
 /// Social 登录 Token 响应
 #[derive(Debug, Deserialize)]
@@ -76,7 +76,9 @@ impl AuthProvider for SocialProvider {
 
         // Step 4: 打开浏览器登录
         let client = KiroAuthServiceClient::new();
-        client.login(provider, &redirect_uri, &code_challenge, &state).await?;
+        client
+            .login(provider, &redirect_uri, &code_challenge, &state)
+            .await?;
 
         // Step 5: 等待 deep link 回调
         println!("[Social] Waiting for deep link callback...");
@@ -84,7 +86,7 @@ impl AuthProvider for SocialProvider {
             .await
             .map_err(|e| format!("Failed to join callback waiter: {}", e))?
             .map_err(|e| format!("OAuth callback failed: {}", e))?;
-        
+
         println!("[Social] Callback received, state: {}", callback.state);
 
         // Step 6: 交换 token
@@ -94,14 +96,20 @@ impl AuthProvider for SocialProvider {
             .await?;
 
         // Step 7: 构建 AuthResult
-        let expires_at = chrono::Local::now() + chrono::Duration::seconds(token_response.expires_in);
+        let expires_at =
+            chrono::Local::now() + chrono::Duration::seconds(token_response.expires_in);
 
-        println!("[Social] {} login successful! {}", provider, serde_json::to_string_pretty(&serde_json::json!({
-            "expiresIn": token_response.expires_in,
-            "expiresAt": expires_at.format("%Y/%m/%d %H:%M:%S").to_string(),
-            "hasIdToken": token_response.id_token.is_some(),
-            "hasProfileArn": token_response.profile_arn.is_some(),
-        })).unwrap_or_default());
+        println!(
+            "[Social] {} login successful! {}",
+            provider,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "expiresIn": token_response.expires_in,
+                "expiresAt": expires_at.format("%Y/%m/%d %H:%M:%S").to_string(),
+                "hasIdToken": token_response.id_token.is_some(),
+                "hasProfileArn": token_response.profile_arn.is_some(),
+            }))
+            .unwrap_or_default()
+        );
 
         Ok(AuthResult {
             access_token: token_response.access_token,
@@ -123,11 +131,16 @@ impl AuthProvider for SocialProvider {
         })
     }
 
-    async fn refresh_token(&self, refresh_token: &str, metadata: RefreshMetadata) -> Result<AuthResult, String> {
+    async fn refresh_token(
+        &self,
+        refresh_token: &str,
+        metadata: RefreshMetadata,
+    ) -> Result<AuthResult, String> {
         let client = KiroAuthServiceClient::new();
         let token_response: SocialRefreshResponse = client.refresh_token(refresh_token).await?;
 
-        let expires_at = chrono::Local::now() + chrono::Duration::seconds(token_response.expires_in);
+        let expires_at =
+            chrono::Local::now() + chrono::Duration::seconds(token_response.expires_in);
 
         Ok(AuthResult {
             access_token: token_response.access_token,

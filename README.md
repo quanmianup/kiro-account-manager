@@ -9,8 +9,6 @@
   <img src="https://img.shields.io/github/v/release/hj01857655/kiro-account-manager?label=Version&color=green" alt="Version">
   <img src="https://img.shields.io/github/downloads/hj01857655/kiro-account-manager/total?color=brightgreen" alt="Downloads">
   <img src="https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-orange" alt="License">
-  <img src="https://img.shields.io/badge/QQ群1-1020204332-12B7F5?logo=tencentqq" alt="QQ群1">
-  <img src="https://img.shields.io/badge/QQ群2-1080919449-12B7F5?logo=tencentqq" alt="QQ群2">
   <img src="https://img.shields.io/badge/语言-简体中文-red" alt="语言">
 </p>
 
@@ -30,31 +28,30 @@
 
 ## 💬 交流反馈
 
-- 🐛 [提交 Issue](https://github.com/hj01857655/kiro-account-manager/issues)
-- 💬 QQ 1群：[1020204332](https://qm.qq.com/q/Vh7mUrNpa8)
-- 💬 QQ 2群：[1080919449](https://qm.qq.com/q/xi0AglEqGs)
-- 💬 QQ 3群：[1076442194](https://qm.qq.com/q/3KYs28eAKQ)
+- 🐛 [提交 Issue](https://github.com/quanmianup/kiro-account-manager/issues)
+
 
 ---
 
 ## 📥 下载
 
-**最新版本**：[v1.8.2](https://github.com/hj01857655/kiro-account-manager/releases/latest)
 
-| 平台 | 架构 | 文件格式 | 下载链接 |
-|------|------|---------|---------|
-| 🪟 **Windows** | x64 | MSI 安装包 | [KiroAccountManager_1.8.2_x64_zh-CN.msi](https://github.com/hj01857655/kiro-account-manager/releases/download/v1.8.2/KiroAccountManager_1.8.2_x64_zh-CN.msi) |
-| 🍎 **macOS** | Intel (x64) | DMG 镜像 | [KiroAccountManager_1.8.2_x64.dmg](https://github.com/hj01857655/kiro-account-manager/releases/download/v1.8.2/KiroAccountManager_1.8.2_x64.dmg) |
-| 🍎 **macOS** | Apple Silicon (M1/M2/M3) | DMG 镜像 | [KiroAccountManager_1.8.2_aarch64.dmg](https://github.com/hj01857655/kiro-account-manager/releases/download/v1.8.2/KiroAccountManager_1.8.2_aarch64.dmg) |
-| 🐧 **Linux** | x86_64 | AppImage | [KiroAccountManager_1.8.2_amd64.AppImage](https://github.com/hj01857655/kiro-account-manager/releases/download/v1.8.2/KiroAccountManager_1.8.2_amd64.AppImage) |
-| 🐧 **Linux** | x86_64 | DEB 包 | [KiroAccountManager_1.8.2_amd64.deb](https://github.com/hj01857655/kiro-account-manager/releases/download/v1.8.2/KiroAccountManager_1.8.2_amd64.deb) |
+| 平台                | 架构                     | 文件格式   | 下载链接                                                                                                                                                    |
+| ------------------- | ------------------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🪟**Windows** | x64                      | MSI 安装包 | [KiroAccountManager_1.8.2_x64_zh-CN.msi](https://github.com/quanmianup/kiro-account-manager/releases/download/v1.8.2/KiroAccountManager_1.8.2_x64_zh-CN.msi)   |
+| 🍎**macOS**   | Intel (x64)              | DMG 镜像   | [KiroAccountManager_1.8.2_x64.dmg](https://github.com/quanmianup/kiro-account-manager/releases/download/v1.8.2/KiroAccountManager_1.8.2_x64.dmg)               |
+| 🍎**macOS**   | Apple Silicon (M1/M2/M3) | DMG 镜像   | [KiroAccountManager_1.8.2_aarch64.dmg](https://github.com/quanmianup/kiro-account-manager/releases/download/v1.8.2/KiroAccountManager_1.8.2_aarch64.dmg)       |
+| 🐧**Linux**   | x86_64                   | AppImage   | [KiroAccountManager_1.8.2_amd64.AppImage](https://github.com/quanmianup/kiro-account-manager/releases/download/v1.8.2/KiroAccountManager_1.8.2_amd64.AppImage) |
+| 🐧**Linux**   | x86_64                   | DEB 包     | [KiroAccountManager_1.8.2_amd64.deb](https://github.com/quanmianup/kiro-account-manager/releases/download/v1.8.2/KiroAccountManager_1.8.2_amd64.deb)           |
 
 **系统要求**：
+
 - **Windows**: Windows 10/11 (64-bit)，需要 [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (Win11 已内置)
 - **macOS**: macOS 10.15+ (Catalina 及以上)
 - **Linux**: x86_64 架构，需要 WebKitGTK 4.0+
 
 **安装说明**：
+
 - **Windows**: 双击 `.msi` 文件安装，首次运行可能需要安装 WebView2
 - **macOS**: 打开 `.dmg` 文件，拖动应用到 Applications 文件夹，首次运行需要在「系统偏好设置 → 安全性与隐私」中允许
 - **Linux AppImage**: 添加执行权限 `chmod +x KiroAccountManager_amd64.AppImage`，然后直接运行
@@ -67,11 +64,13 @@
 ### 🔐 在线登录
 
 **Social 登录** - 社交账号授权
+
 - Google / GitHub
 - 桌面端 OAuth 流程
 - 自动刷新 Token
 
 **IdC 登录** - AWS IAM Identity Center
+
 - BuilderId（个人开发者账号）
 - 🆕 Enterprise（企业账号）
 - 完整支持 SSO OIDC 流程
@@ -80,6 +79,7 @@
 ### 📊 账号管理
 
 **多视图展示**
+
 - 卡片视图 / 列表视图自由切换
 - 配额进度条（主配额 / 试用 / 奖励）
 - 订阅类型标识（Free / PRO / PRO+）
@@ -87,6 +87,7 @@
 - 状态高亮（正常 / 过期 / 封禁 / 当前使用）
 
 **智能检测**
+
 - 封禁检测（423 Locked / 403 TEMPORARILY_SUSPENDED）
 - 默认按试用到期时间排序
 - 刷新失败自动通知（封禁 / Token 失效）
@@ -98,9 +99,50 @@
 - 切换进度实时显示
 - 封禁账号自动跳过
 
+### 🚀 一键注册（实验性功能）
+
+**邮箱配置**
+
+- 支持 IMAP/POP3 协议
+- 预设常见邮箱模板（Gmail / Outlook / QQ / 163 / 126）
+- 邮箱连接测试
+- 密码加密存储（AES-256-GCM）
+
+**注册记录管理**
+
+- 表格展示注册记录（邮箱 / 密码 / 时间 / 状态）
+- 支持编辑、删除、搜索、分页
+- 状态追踪（注册中 / 已注册 / 已同步 / 失败）
+- 未同步账号高亮显示
+
+**自动注册流程**
+
+- 配置目标数量、注册间隔、重试次数
+- 后台异步执行，不阻塞界面
+- 实时进度显示（已完成 / 目标数量）
+- 支持随时停止注册
+
+**验证码获取**
+
+- 自动监听邮箱新邮件
+- 智能识别 AWS 注册邮件
+- 正则解析 6 位验证码
+- 超时保护（5 分钟）
+
+**同步到账号管理**
+
+- 检查未同步账号
+- 一键同步到账号管理模块
+- 批量同步支持
+- 同步进度显示
+
+> **⚠️ 注意**：此功能为实验性功能，注册 API 接口需要用户自行实现。框架已提供邮箱验证码获取能力，降低实现难度。
+
+
 ### 📦 批量操作
 
 **导入导出**
+
 - JSON 格式（文件导入 / 文本粘贴）
 - 🆕 从 Kiro IDE 导入（自动检测已登录账号）
 - 🆕 从 kiro-cli 导入（读取 SQLite 数据库）
@@ -109,12 +151,14 @@
 - 导出为 JSON 文件（支持批量选择）
 
 **批量管理**
+
 - 批量刷新（智能并发控制，自动优化速度）
 - 批量删除 / 批量打标签
 - 🆕 远程删除（从 AWS 服务端注销，仅 Google/GitHub 且状态正常）
 - 关键词搜索过滤
 
 **性能优化**
+
 - 🚀 后端减少不必要的内存克隆，提升响应速度
 - 🚀 前端优化组件重渲染，筛选/搜索快 2-3 倍
 - 🚀 使用 Map/Set 数据结构，查找性能提升至 O(1)
@@ -122,11 +166,13 @@
 ### 🏷️ 标签与分组
 
 **标签系统**
+
 - 自定义标签（名称 / 颜色）
 - 批量设置标签
 - 按标签筛选账号
 
 **分组管理**
+
 - 🆕 账号分组功能
 - 按分组筛选账号
 - 支持无分组 / 有分组筛选
@@ -141,6 +187,7 @@
 ### 🔌 Kiro 配置
 
 **MCP 服务器管理**
+
 - 增删改查 MCP 配置
 - 启用 / 禁用服务器
 - autoApprove 通配符支持（`*` / `tool_*` / 正则）
@@ -148,6 +195,7 @@
 - 实时连接状态检测
 
 **Steering 规则管理**
+
 - 4 种 inclusion 模式：
   - `always` - 始终包含
   - `auto` - 自动包含（关键词匹配）
@@ -158,12 +206,14 @@
 - Markdown 语法高亮编辑
 
 **Skills 管理**（Kiro v0.9.2+）
+
 - 浏览用户级和项目级 Skills
 - 创建 / 编辑 / 删除 SKILL.md
 - frontmatter 支持（name / description）
 - 快速激活 / 停用
 
 **Custom Agents 管理**（Kiro v0.9.2+）
+
 - 完整 v0.10.32 schema 支持：
   - `name` / `description` - 基础信息
   - `tools` - 工具权限（read / write / shell / web / spec / mcp / *）
@@ -174,6 +224,7 @@
 - JSON 编辑器（语法高亮 + 验证）
 
 **Powers 管理**（Kiro v0.9.2+）
+
 - 浏览已安装的 Powers
 - 查看 POWER.md 文档
 - 查看包含的 MCP 服务器配置
@@ -181,6 +232,7 @@
 - 一键卸载 Power
 
 **版本变化速览（Kiro）**
+
 - **v0.9.2 引入**：Skills、Custom Agents（sub-agent 更名）、Powers registry-v2
 - **v0.10.x 增强（含 v0.10.32）**：
   - Spec：Feature 双工作流（Requirements-First / Design-First）+ Bugfix 工作流（`bugfix.md -> design.md -> tasks.md`）
@@ -189,6 +241,7 @@
   - MCP：Prompts / Resource Templates / Elicitation
 
 **项目级配置支持**
+
 - Skills / Steering / Custom Agents 同时支持：
   - 用户级：`~/.kiro/`（全局生效）
   - 项目级：`<project>/.kiro/`（仅当前项目）
@@ -198,21 +251,25 @@
 ### ⚙️ 系统设置
 
 **界面主题**
+
 - 四种主题（浅色 / 深色 / 紫色 / 绿色）
 
 **AI 配置**
+
 - AI 模型选择与锁定
 - 代码库索引开关
 - 信任命令配置（关闭 / 常用 / 全部）
 - 🆕 Agent 自主模式（监督 / 自动驾驶）
 
 **账号管理**
+
 - Token 自动刷新（可配置间隔）
 - 切号自动重置机器 ID（随机 / 绑定模式）
 - 隐私模式（邮箱脱敏显示）
 - 🆕 余额不足自动换号（可配置阈值和检查间隔）
 
 **浏览器与代理**
+
 - 自定义浏览器 / 自动检测
 - 默认无痕模式启动（保护隐私，简化 OAuth 流程）
 - HTTP 代理配置 / 自动检测系统代理
@@ -275,7 +332,7 @@ A: 网络超时，手动再刷新一次或换个网络试试。
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=hj01857655/kiro-account-manager&type=Date)](https://star-history.com/#hj01857655/kiro-account-manager&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=quanmianup/kiro-account-manager&type=Date)](https://star-history.com/#quanmianup/kiro-account-manager&Date)
 
 ---
 

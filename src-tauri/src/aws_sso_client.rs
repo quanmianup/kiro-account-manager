@@ -1,6 +1,5 @@
 /// AWS SSO OIDC Client
 /// 实现 AWS SSO OIDC API 调用，用于 BuilderId 认证
-
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -83,7 +82,8 @@ impl AWSSSOClient {
 
         println!("\n[AWS SSO] Refresh Token");
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(&url)
             .header("Content-Type", "application/json")
             .json(&body)
@@ -103,14 +103,16 @@ impl AWSSSOClient {
 
         println!("Token refreshed successfully");
 
-        serde_json::from_str(&text)
-            .map_err(|e| format!("Failed to parse token response: {}", e))
+        serde_json::from_str(&text).map_err(|e| format!("Failed to parse token response: {}", e))
     }
 
     /// 注册支持设备授权的客户端
-    pub async fn register_device_client(&self, issuer_url: &str) -> Result<ClientRegistration, String> {
+    pub async fn register_device_client(
+        &self,
+        issuer_url: &str,
+    ) -> Result<ClientRegistration, String> {
         let url = format!("{}/client/register", self.base_url);
-        
+
         let body = serde_json::json!({
             "clientName": "Kiro Account Manager",
             "clientType": "public",
@@ -125,9 +127,13 @@ impl AWSSSOClient {
             "issuerUrl": issuer_url
         });
 
-        println!("\n[AWS SSO] Register Device Client (region: {})", self.region);
+        println!(
+            "\n[AWS SSO] Register Device Client (region: {})",
+            self.region
+        );
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(&url)
             .header("Content-Type", "application/json")
             .json(&body)
@@ -139,7 +145,10 @@ impl AWSSSOClient {
         let text = resp.text().await.unwrap_or_default();
 
         if !status.is_success() {
-            return Err(format!("Device client registration failed ({}): {}", status, text));
+            return Err(format!(
+                "Device client registration failed ({}): {}",
+                status, text
+            ));
         }
 
         println!("Device client registered successfully");
@@ -164,7 +173,8 @@ impl AWSSSOClient {
 
         println!("\n[AWS SSO] Start Device Authorization");
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(&url)
             .header("Content-Type", "application/json")
             .json(&body)
@@ -176,7 +186,10 @@ impl AWSSSOClient {
         let text = resp.text().await.unwrap_or_default();
 
         if !status.is_success() {
-            return Err(format!("Device authorization failed ({}): {}", status, text));
+            return Err(format!(
+                "Device authorization failed ({}): {}",
+                status, text
+            ));
         }
 
         println!("Device authorization started");
@@ -200,7 +213,8 @@ impl AWSSSOClient {
             "deviceCode": device_code
         });
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(&url)
             .header("Content-Type", "application/json")
             .json(&body)
@@ -212,8 +226,8 @@ impl AWSSSOClient {
         let text = resp.text().await.unwrap_or_default();
 
         if status.is_success() {
-            let token: TokenResponse = serde_json::from_str(&text)
-                .map_err(|e| format!("Failed to parse token: {}", e))?;
+            let token: TokenResponse =
+                serde_json::from_str(&text).map_err(|e| format!("Failed to parse token: {}", e))?;
             return Ok(DevicePollResult::Success(token));
         }
 

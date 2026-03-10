@@ -1,6 +1,6 @@
 // Powers 管理命令
 
-use crate::powers::{PowersRegistry, PowerInfo};
+use crate::powers::{PowerInfo, PowersRegistry};
 
 /// 获取已安装的 Powers
 #[tauri::command]

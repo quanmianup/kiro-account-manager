@@ -113,26 +113,34 @@ export function useAccounts() {
   // 初始化和事件监听
   useEffect(() => {
     loadAccounts()
-    const unlistenLoginSuccess = listen('login-success', () => loadAccounts())
-    const unlistenKiroLoginData = listen('kiro-login-data', async (event) => {
-      try {
-        const data = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload
-        if (data?.accessToken && data?.refreshToken) {
-          await invoke('add_kiro_account', {
-            email: data.email || 'unknown@kiro.dev',
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
-            csrfToken: data.csrfToken || '',
-            idp: data.idp || 'Google',
-            quota: data.quota ?? null,
-            used: data.used ?? null
-          })
-          loadAccounts()
+    
+    let unlistenLoginSuccess
+    let unlistenKiroLoginData
+    
+    const setupListeners = async () => {
+      unlistenLoginSuccess = await listen('login-success', () => loadAccounts())
+      unlistenKiroLoginData = await listen('kiro-login-data', async (event) => {
+        try {
+          const data = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload
+          if (data?.accessToken && data?.refreshToken) {
+            await invoke('add_kiro_account', {
+              email: data.email || 'unknown@kiro.dev',
+              accessToken: data.accessToken,
+              refreshToken: data.refreshToken,
+              csrfToken: data.csrfToken || '',
+              idp: data.idp || 'Google',
+              quota: data.quota ?? null,
+              used: data.used ?? null
+            })
+            loadAccounts()
+          }
+        } catch (e) {
+          console.error('Failed to handle kiro-login-data:', e)
         }
-      } catch (e) {
-        console.error('Failed to handle kiro-login-data:', e)
-      }
-    })
+      })
+    }
+    
+    setupListeners()
 
     const interval = setInterval(async () => {
       if (document.hidden) return
@@ -141,8 +149,12 @@ export function useAccounts() {
     }, 5 * 60 * 1000)
 
     return () => {
-      unlistenLoginSuccess.then(fn => fn())
-      unlistenKiroLoginData.then(fn => fn())
+      if (unlistenLoginSuccess && typeof unlistenLoginSuccess === 'function') {
+        unlistenLoginSuccess()
+      }
+      if (unlistenKiroLoginData && typeof unlistenKiroLoginData === 'function') {
+        unlistenKiroLoginData()
+      }
       clearInterval(interval)
     }
   }, [loadAccounts, autoRefreshAll])

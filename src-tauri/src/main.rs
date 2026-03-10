@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod account;
 mod auth;
 mod auth_social;
 mod aws_sso_client;
@@ -7,41 +8,45 @@ mod browser;
 mod codewhisperer_client;
 mod commands;
 mod deep_link_handler;
-
+mod email_client;
 mod kiro;
 mod kiro_auth_client;
 mod mcp;
 mod powers;
 mod process;
 mod providers;
+mod registration;
 mod state;
 mod steering;
-mod account;
+mod verification_code;
 
 use account::AccountStore;
 use auth::AuthState;
+use registration::RegistrationProcess;
 use state::AppState;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{Listener, Manager};
 
 // 导入命令
 use browser::detect_installed_browsers;
 use commands::account_cmd::{
-    get_accounts, delete_account, delete_accounts, update_account, sync_account,
-    refresh_account_token, verify_account, add_account_by_social, add_local_kiro_account,
-    add_account_by_idc, import_accounts, export_accounts
+    add_account_by_idc, add_account_by_social, add_local_kiro_account, delete_account,
+    delete_accounts, export_accounts, get_accounts, import_accounts, refresh_account_token,
+    sync_account, update_account, verify_account,
 };
 use commands::app_settings_cmd::*;
 use commands::auth_cmd::*;
+use commands::email_template_cmd::*;
 use commands::kiro_settings_cmd::*;
 use commands::machine_guid_cmd::*;
 use commands::mcp_cmd::*;
 use commands::powers_cmd::*;
 use commands::proxy_cmd::*;
+use commands::registration_cmd::*;
 use commands::sso_import_cmd::*;
 // use commands::update_cmd::*;
-use commands::web_oauth_cmd::*;
 use commands::steering_cmd::*;
+use commands::web_oauth_cmd::*;
 use kiro::{
     get_kiro_local_token, get_kiro_telemetry_info, reset_kiro_machine_id, switch_kiro_account,
 };
@@ -63,7 +68,7 @@ fn main() {
                 use tauri_plugin_deep_link::DeepLinkExt;
                 let _ = app.deep_link().register("kiro");
             }
-            
+
             // 监听 deep link URL
             let app_handle = app.handle().clone();
             app.listen("deep-link://new-url", move |event| {
@@ -71,18 +76,21 @@ fn main() {
                 println!("[DeepLink] Received: {}", payload);
                 // 处理 OAuth 回调
                 deep_link_handler::handle_deep_link(payload);
-                // 聚焦窗口
+                // 显示并聚焦窗口
                 if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.show();
                     let _ = window.set_focus();
+                    let _ = window.unminimize();
                 }
             });
-            
+
             Ok(())
         })
         .manage(AppState {
             store: Mutex::new(AccountStore::new()),
             auth: AuthState::new(),
             pending_login: Mutex::new(None),
+            registration_process: Arc::new(RegistrationProcess::new()),
         })
         .invoke_handler(tauri::generate_handler![
             // 账号命令
@@ -165,7 +173,27 @@ fn main() {
             get_steering_file,
             save_steering_file,
             delete_steering_file,
-            create_steering_file
+            create_steering_file,
+            // 一键注册命令
+            save_email_config,
+            load_email_config,
+            test_email_connection,
+            get_registration_records,
+            save_registration_record,
+            update_registration_record,
+            delete_registration_records,
+            check_unsynced_accounts,
+            sync_accounts_to_manager,
+            start_registration_process,
+            stop_registration_process,
+            get_registration_state,
+            // 邮箱模板管理命令
+            get_email_templates,
+            save_email_templates,
+            add_email_template,
+            update_email_template,
+            delete_email_template,
+            reset_email_templates
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

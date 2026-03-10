@@ -16,33 +16,44 @@ function WebOAuthLogin({ onLogin }) {
   const [windowLabel, setWindowLabel] = useState(null)
 
   useEffect(() => {
-    const unlistenSuccess = listen('login-success', (event) => {
-      console.log('Web OAuth login success:', event.payload)
-      setStep('idle')
-      setLoadingProvider(null)
-      setCallbackUrl('')
-      setWindowLabel(null)
-      onLogin?.(event.payload)
-    })
+    let unlistenSuccess
+    let unlistenCallback
+    
+    const setupListeners = async () => {
+      unlistenSuccess = await listen('login-success', (event) => {
+        console.log('Web OAuth login success:', event.payload)
+        setStep('idle')
+        setLoadingProvider(null)
+        setCallbackUrl('')
+        setWindowLabel(null)
+        onLogin?.(event.payload)
+      })
 
-    const unlistenCallback = listen('web-oauth-callback', async (event) => {
-      console.log('web-oauth-callback:', event.payload)
-      setStep('completing')
-      try {
-        await invoke('web_oauth_complete', { callbackUrl: event.payload })
-      } catch (e) {
-        console.error('Auto complete failed:', e)
-        setError(typeof e === 'string' ? e : e.message || t('login.failed'))
-        setCallbackUrl(event.payload)
-        setStep('webview')
-      }
-    })
+      unlistenCallback = await listen('web-oauth-callback', async (event) => {
+        console.log('web-oauth-callback:', event.payload)
+        setStep('completing')
+        try {
+          await invoke('web_oauth_complete', { callbackUrl: event.payload })
+        } catch (e) {
+          console.error('Auto complete failed:', e)
+          setError(typeof e === 'string' ? e : e.message || t('login.failed'))
+          setCallbackUrl(event.payload)
+          setStep('webview')
+        }
+      })
+    }
+    
+    setupListeners()
 
     return () => {
-      unlistenSuccess.then(fn => fn())
-      unlistenCallback.then(fn => fn())
+      if (unlistenSuccess && typeof unlistenSuccess === 'function') {
+        unlistenSuccess()
+      }
+      if (unlistenCallback && typeof unlistenCallback === 'function') {
+        unlistenCallback()
+      }
     }
-  }, [onLogin])
+  }, [onLogin, t])
 
   const handleLogin = async (provider) => {
     setLoadingProvider(provider)

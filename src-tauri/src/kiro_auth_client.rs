@@ -60,7 +60,7 @@ impl KiroAuthServiceClient {
         println!();
 
         let login_url = login_url.trim().to_string();
-        
+
         open_browser(&login_url)?;
 
         Ok(())
@@ -111,34 +111,29 @@ impl KiroAuthServiceClient {
 
         println!("\n[6] CREATE TOKEN RESPONSE");
         println!("Status: {}", status);
-        
+
         let body_str = String::from_utf8_lossy(&bytes);
-        
+
         if !status.is_success() {
             println!("Error: {}", body_str);
             return Err(format!(
                 "Kiro Auth Service token creation failed: {} - {}",
-                status,
-                body_str
+                status, body_str
             ));
         }
 
         // 完整格式化打印 JSON
         match serde_json::from_str::<serde_json::Value>(&body_str) {
-            Ok(json) => {
-                match serde_json::to_string_pretty(&json) {
-                    Ok(pretty) => println!("{}", pretty),
-                    Err(_) => println!("{}", body_str),
-                }
-            }
+            Ok(json) => match serde_json::to_string_pretty(&json) {
+                Ok(pretty) => println!("{}", pretty),
+                Err(_) => println!("{}", body_str),
+            },
             Err(_) => println!("{}", body_str),
         }
         println!();
 
-        serde_json::from_slice::<T>(&bytes).map_err(|e| format!(
-            "Kiro Auth Service token creation parse failed: {}",
-            e
-        ))
+        serde_json::from_slice::<T>(&bytes)
+            .map_err(|e| format!("Kiro Auth Service token creation parse failed: {}", e))
     }
 
     /// 刷新访问令牌
@@ -148,7 +143,10 @@ impl KiroAuthServiceClient {
     ) -> Result<T, String> {
         println!("\n[Social] REFRESH TOKEN REQUEST");
         println!("URL: {}", self.refresh_token_url());
-        println!("RefreshToken: {}...", &refresh_token[..20.min(refresh_token.len())]);
+        println!(
+            "RefreshToken: {}...",
+            &refresh_token[..20.min(refresh_token.len())]
+        );
 
         #[derive(serde::Serialize)]
         struct Body<'a> {
@@ -184,25 +182,20 @@ impl KiroAuthServiceClient {
             }
             return Err(format!(
                 "Kiro Auth Service token refresh failed: {} - {}",
-                status,
-                body_str
+                status, body_str
             ));
         }
 
         // 格式化打印 JSON
         match serde_json::from_str::<serde_json::Value>(&body_str) {
-            Ok(json) => {
-                match serde_json::to_string_pretty(&json) {
-                    Ok(pretty) => println!("{}", pretty),
-                    Err(_) => println!("{}", body_str),
-                }
-            }
+            Ok(json) => match serde_json::to_string_pretty(&json) {
+                Ok(pretty) => println!("{}", pretty),
+                Err(_) => println!("{}", body_str),
+            },
             Err(_) => println!("{}", body_str),
         }
 
-        serde_json::from_slice::<T>(&bytes).map_err(|e| format!(
-            "Kiro Auth Service token refresh parse failed: {}",
-            e
-        ))
+        serde_json::from_slice::<T>(&bytes)
+            .map_err(|e| format!("Kiro Auth Service token refresh parse failed: {}", e))
     }
 }

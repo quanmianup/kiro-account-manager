@@ -1,0 +1,71 @@
+warning: stripping a prefix manually
+   --> src\browser.rs:142:34
+    |
+142 |         if let Some(end_quote) = browser_path[1..].find('"') {
+    |                                  ^^^^^^^^^^^^^^^^^
+    |
+note: the prefix was tested here
+   --> src\browser.rs:140:28
+    |
+140 |     let (exe_path, rest) = if browser_path.starts_with('"') {
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#manual_strip
+    = note: `#[warn(clippy::manual_strip)]` on by default
+help: try using the `strip_prefix` method
+    |
+140 ~     let (exe_path, rest) = if let Some(<stripped>) = browser_path.strip_prefix('"') {
+141 |         // 璺緞琚紩鍙峰寘瑁? "C:\Program Files\...\chrome.exe" --incognito
+142 ~         if let Some(end_quote) = <stripped>.find('"') {
+    |
+
+warning: this function has too many arguments (8/7)
+   --> src\commands\account_cmd.rs:260:1
+    |
+260 | / pub async fn verify_account(
+261 | |     state: State<'_, AppState>,
+262 | |     _access_token: String,
+263 | |     refresh_token: String,
+...   |
+269 | |     region: Option<String>,
+270 | | ) -> Result<VerifyAccountResponse, String> {
+    | |__________________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#too_many_arguments
+    = note: `#[warn(clippy::too_many_arguments)]` on by default
+
+warning: this function has too many arguments (8/7)
+   --> src\commands\auth_cmd.rs:330:1
+    |
+330 | / pub async fn add_kiro_account(
+331 | |     state: State<'_, AppState>,
+332 | |     email: String,
+333 | |     access_token: String,
+...   |
+338 | |     _used: Option<i32>,
+339 | | ) -> Result<Account, String> {
+    | |____________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#too_many_arguments
+
+warning: very complex type used. Consider factoring parts into `type` definitions
+  --> src\deep_link_handler.rs:17:16
+   |
+17 |     result_rx: Arc<Mutex<Option<Receiver<Result<OAuthCallbackResult, String>>>>>,
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#type_complexity
+   = note: `#[warn(clippy::type_complexity)]` on by default
+
+warning: very complex type used. Consider factoring parts into `type` definitions
+  --> src\deep_link_handler.rs:44:24
+   |
+44 |   static PENDING_SENDER: std::sync::OnceLock<
+   |  ________________________^
+45 | |     Mutex<Option<(String, Sender<Result<OAuthCallbackResult, String>>)>>,
+46 | | > = std::sync::OnceLock::new();
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#type_complexity
+
+warning: `kiro-account-manager` (bin "kiro-account-manager") generated 5 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.99s

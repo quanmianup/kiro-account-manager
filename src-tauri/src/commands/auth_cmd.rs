@@ -1,13 +1,15 @@
 // Auth 相关命令 - 直接存储 usage_data
 
-use tauri::{Emitter, State};
-use crate::state::AppState;
 use crate::account::Account;
-use crate::auth::{User, get_usage_limits_desktop};
+use crate::auth::{get_usage_limits_desktop, User};
 use crate::auth_social;
 use crate::codewhisperer_client::CodeWhispererClient;
-use crate::providers::{AuthMethod, AuthProvider, get_provider_config, create_social_provider, create_idc_provider};
 use crate::kiro::get_machine_id;
+use crate::providers::{
+    create_idc_provider, create_social_provider, get_provider_config, AuthMethod, AuthProvider,
+};
+use crate::state::AppState;
+use tauri::{Emitter, Manager, State};
 
 #[tauri::command]
 pub fn get_current_user(state: State<AppState>) -> Option<User> {
@@ -44,26 +46,34 @@ async fn login_social(
     let social_provider = create_social_provider(config);
     let provider_id = social_provider.get_provider_id().to_string();
     let auth_method = social_provider.get_auth_method();
-    
+
     let auth_result = social_provider.login().await?;
-    
+
     // 获取 usage，失败不影响登录（账号可能被暂停但仍可保存）
-    let usage = get_usage_limits_desktop(&auth_result.access_token).await.ok();
+    let usage = get_usage_limits_desktop(&auth_result.access_token)
+        .await
+        .ok();
     let usage_data = serde_json::to_value(&usage).unwrap_or(serde_json::Value::Null);
 
     // 优先从 usage 获取 email，否则用默认值
-    let email = usage.as_ref()
+    let email = usage
+        .as_ref()
         .and_then(|u| u.user_info.as_ref())
         .and_then(|ui| ui.email.clone())
         .unwrap_or_else(|| format!("user@{}.social", provider_id.to_lowercase()));
-    let user_id = usage.as_ref()
+    let user_id = usage
+        .as_ref()
         .and_then(|u| u.user_info.as_ref())
         .and_then(|ui| ui.user_id.clone());
 
     let mut store = state.store.lock().unwrap();
-    
+
     // 按 email + provider 去重
-    let account = if let Some(existing) = store.accounts.iter_mut().find(|a| a.email == email && a.provider.as_deref() == Some(&provider_id)) {
+    let account = if let Some(existing) = store
+        .accounts
+        .iter_mut()
+        .find(|a| a.email == email && a.provider.as_deref() == Some(&provider_id))
+    {
         // 更新现有账号
         existing.access_token = Some(auth_result.access_token.clone());
         existing.refresh_token = Some(auth_result.refresh_token.clone());
@@ -89,15 +99,31 @@ async fn login_social(
         store.accounts.insert(0, account.clone());
         account
     };
-    
+
     store.save_to_file();
     drop(store);
 
-    update_auth_state(&state, &email, &provider_id, &auth_result.access_token, &auth_result.refresh_token);
+    update_auth_state(
+        &state,
+        &email,
+        &provider_id,
+        &auth_result.access_token,
+        &auth_result.refresh_token,
+    );
     println!("\n[{}] LOGIN SUCCESS: {}", auth_method, account.email);
 
+    // 显示并聚焦窗口
+    if let Some(window) = app_handle.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.unminimize();
+    }
+
     let _ = app_handle.emit("login-success", account.id.clone());
-    Ok(format!("{} login completed for {}", auth_method, provider_id))
+    Ok(format!(
+        "{} login completed for {}",
+        auth_method, provider_id
+    ))
 }
 
 async fn login_idc(
@@ -108,7 +134,7 @@ async fn login_idc(
     let idc_provider = create_idc_provider(config);
     let provider_id = idc_provider.get_provider_id().to_string();
     let auth_method = idc_provider.get_auth_method();
-    
+
     let auth_result = idc_provider.login().await?;
 
     let machine_id = get_machine_id();
@@ -121,18 +147,24 @@ async fn login_idc(
     };
     let usage_data = serde_json::to_value(&usage).unwrap_or(serde_json::Value::Null);
 
-    let email = usage.as_ref()
+    let email = usage
+        .as_ref()
         .and_then(|u| u.user_info.as_ref())
         .and_then(|ui| ui.email.clone())
         .unwrap_or_else(|| "user@builder.id".to_string());
-    let user_id = usage.as_ref()
+    let user_id = usage
+        .as_ref()
         .and_then(|u| u.user_info.as_ref())
         .and_then(|ui| ui.user_id.clone());
 
     let mut store = state.store.lock().unwrap();
-    
+
     // 按 email + provider 去重
-    let account = if let Some(existing) = store.accounts.iter_mut().find(|a| a.email == email && a.provider.as_deref() == Some(&provider_id)) {
+    let account = if let Some(existing) = store
+        .accounts
+        .iter_mut()
+        .find(|a| a.email == email && a.provider.as_deref() == Some(&provider_id))
+    {
         existing.access_token = Some(auth_result.access_token.clone());
         existing.refresh_token = Some(auth_result.refresh_token.clone());
         existing.user_id = user_id;
@@ -145,7 +177,11 @@ async fn login_idc(
         existing.id_token = auth_result.id_token;
         existing.profile_arn = auth_result.profile_arn;
         existing.usage_data = Some(usage_data);
-        existing.status = if is_banned { "已封禁".to_string() } else { "正常".to_string() };
+        existing.status = if is_banned {
+            "已封禁".to_string()
+        } else {
+            "正常".to_string()
+        };
         existing.clone()
     } else {
         let mut account = Account::new(email.clone(), format!("Kiro {} 账号", provider_id));
@@ -162,22 +198,45 @@ async fn login_idc(
         account.id_token = auth_result.id_token;
         account.profile_arn = auth_result.profile_arn;
         account.usage_data = Some(usage_data);
-        account.status = if is_banned { "已封禁".to_string() } else { "正常".to_string() };
+        account.status = if is_banned {
+            "已封禁".to_string()
+        } else {
+            "正常".to_string()
+        };
         store.accounts.insert(0, account.clone());
         account
     };
-    
+
     store.save_to_file();
     drop(store);
 
-    update_auth_state(&state, &email, &provider_id, &auth_result.access_token, &auth_result.refresh_token);
+    update_auth_state(
+        &state,
+        &email,
+        &provider_id,
+        &auth_result.access_token,
+        &auth_result.refresh_token,
+    );
     println!("\n[{}] LOGIN SUCCESS: {}", auth_method, account.email);
+
+    // 显示并聚焦窗口
+    if let Some(window) = app_handle.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.unminimize();
+    }
 
     let _ = app_handle.emit("login-success", account.id.clone());
     Ok(format!("{} login completed for {}", auth_method, email))
 }
 
-fn update_auth_state(state: &State<'_, AppState>, email: &str, provider: &str, access_token: &str, refresh_token: &str) {
+fn update_auth_state(
+    state: &State<'_, AppState>,
+    email: &str,
+    provider: &str,
+    access_token: &str,
+    refresh_token: &str,
+) {
     let user = User {
         id: uuid::Uuid::new_v4().to_string(),
         email: email.to_string(),
@@ -202,29 +261,37 @@ pub async fn handle_kiro_social_callback(
         let lock = state.pending_login.lock().unwrap();
         lock.clone().ok_or("No pending login found")?
     };
-    
+
     if pending.state != callback_state {
         return Err("State mismatch".to_string());
     }
-    
+
     let redirect_uri = "kiro://app/callback";
     let token_response = auth_social::exchange_social_code_for_token(
-        &code, &pending.code_verifier, redirect_uri, &pending.machineid,
-    ).await?;
-    
-    let usage = get_usage_limits_desktop(&token_response.access_token).await.ok();
+        &code,
+        &pending.code_verifier,
+        redirect_uri,
+        &pending.machineid,
+    )
+    .await?;
+
+    let usage = get_usage_limits_desktop(&token_response.access_token)
+        .await
+        .ok();
     let usage_data = serde_json::to_value(&usage).unwrap_or(serde_json::Value::Null);
-    
-    let email = usage.as_ref()
+
+    let email = usage
+        .as_ref()
         .and_then(|u| u.user_info.as_ref())
         .and_then(|ui| ui.email.clone())
         .unwrap_or_else(|| format!("user@{}.com", pending.provider.to_lowercase()));
-    let user_id = usage.as_ref()
+    let user_id = usage
+        .as_ref()
         .and_then(|u| u.user_info.as_ref())
         .and_then(|ui| ui.user_id.clone());
 
     let mut store = state.store.lock().unwrap();
-    
+
     let account = if let Some(existing) = store.accounts.iter_mut().find(|a| a.email == email) {
         existing.access_token = Some(token_response.access_token.clone());
         existing.refresh_token = Some(token_response.refresh_token.clone());
@@ -243,17 +310,24 @@ pub async fn handle_kiro_social_callback(
         store.accounts.insert(0, account.clone());
         account
     };
-    
+
     store.save_to_file();
     drop(store);
-    
-    update_auth_state(&state, &email, &pending.provider, &token_response.access_token, &token_response.refresh_token);
+
+    update_auth_state(
+        &state,
+        &email,
+        &pending.provider,
+        &token_response.access_token,
+        &token_response.refresh_token,
+    );
     let _ = app_handle.emit("login-success", account.id);
     println!("Social callback login completed: {}", email);
     Ok(())
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn add_kiro_account(
     state: State<'_, AppState>,
     email: String,
@@ -265,26 +339,28 @@ pub async fn add_kiro_account(
     _used: Option<i32>,
 ) -> Result<Account, String> {
     println!("Adding Kiro account: email={}, idp={}", email, idp);
-    
+
     let usage = if !access_token.is_empty() {
         get_usage_limits_desktop(&access_token).await.ok()
     } else {
         None
     };
     let usage_data = serde_json::to_value(&usage).unwrap_or(serde_json::Value::Null);
-    
-    let final_email = usage.as_ref()
+
+    let final_email = usage
+        .as_ref()
         .and_then(|u| u.user_info.as_ref())
         .and_then(|ui| ui.email.clone())
         .unwrap_or(email.clone());
-    let user_id = usage.as_ref()
+    let user_id = usage
+        .as_ref()
         .and_then(|u| u.user_info.as_ref())
         .and_then(|ui| ui.user_id.clone());
 
     *state.auth.access_token.lock().unwrap() = Some(access_token.clone());
     *state.auth.refresh_token.lock().unwrap() = Some(refresh_token.clone());
     *state.auth.csrf_token.lock().unwrap() = Some(csrf_token.clone());
-    
+
     let user = User {
         id: uuid::Uuid::new_v4().to_string(),
         email: final_email.clone(),
@@ -294,10 +370,11 @@ pub async fn add_kiro_account(
     };
     *state.auth.user.lock().unwrap() = Some(user);
     *state.pending_login.lock().unwrap() = None;
-    
+
     let mut store = state.store.lock().unwrap();
-    
-    let account = if let Some(existing) = store.accounts.iter_mut().find(|a| a.email == final_email) {
+
+    let account = if let Some(existing) = store.accounts.iter_mut().find(|a| a.email == final_email)
+    {
         existing.access_token = Some(access_token);
         existing.refresh_token = Some(refresh_token);
         existing.provider = Some(idp);
@@ -317,9 +394,9 @@ pub async fn add_kiro_account(
         store.accounts.insert(0, account.clone());
         account
     };
-    
+
     store.save_to_file();
-    
+
     Ok(account)
 }
 

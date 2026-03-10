@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { emit } from '@tauri-apps/api/event'
-import { Lock, Copy, Sun, Moon, Palette, Check, RefreshCw, Settings as SettingsIcon, Clock, Globe, Search, Shield, Download, Upload, Shuffle, AlertTriangle } from 'lucide-react'
+import { Lock, Copy, Sun, Moon, Palette, Check, RefreshCw, Settings as SettingsIcon, Clock, Globe, Search, Shield, Download, Upload, Shuffle, AlertTriangle, Mail, Plus, Edit2, Trash2, Save, X } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useDialog } from '../contexts/DialogContext'
 import { useI18n } from '../i18n.jsx'
 
-function Settings() {
+function Settings({ onNavigate }) {
   const { theme, setTheme, colors } = useTheme()
   const { showConfirm, showError, showSuccess } = useDialog()
   const { t } = useI18n()
@@ -38,7 +38,22 @@ function Settings() {
   const [machineGuidLoading, setMachineGuidLoading] = useState(false)
   const [machineGuidAction, setMachineGuidAction] = useState(null) // 'backup' | 'restore' | 'reset'
   
+  // 邮箱模板管理
+  const [emailTemplates, setEmailTemplates] = useState([])
+  const [editingTemplate, setEditingTemplate] = useState(null)
+  const [isAddingTemplate, setIsAddingTemplate] = useState(false)
+  
 
+
+  // 加载邮箱模板
+  const loadEmailTemplates = async () => {
+    try {
+      const templates = await invoke('get_email_templates')
+      setEmailTemplates(templates)
+    } catch (err) {
+      console.error('Failed to load email templates:', err)
+    }
+  }
 
   // 加载设置
   const loadSettings = async () => {
@@ -82,6 +97,20 @@ function Settings() {
 
   useEffect(() => {
     loadSettings()
+    loadEmailTemplates()
+    
+    // 检查 URL 参数，如果有 scrollTo=email-templates，则滚动到邮箱模板区域
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('scrollTo') === 'email-templates') {
+      setTimeout(() => {
+        const element = document.getElementById('email-templates')
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+        // 滚动完成后立即清除 URL 参数
+        window.history.replaceState(null, '', window.location.pathname)
+      }, 300)
+    }
   }, [])
 
   // 保存应用设置（后端已实现增量更新，直接传入要更新的字段）
@@ -518,6 +547,380 @@ function Settings() {
                 <p className={`text-xs ${colors.textMuted} mt-0.5`}>{t('settings.bindMachineIdDesc')}</p>
               </div>
             </label>
+          )}
+        </section>
+
+        {/* 邮箱模板设置 */}
+        <section id="email-templates" className={`card-glow ${colors.card} rounded-2xl p-6 shadow-sm border ${colors.cardBorder} mb-6 animate-slide-in-left delay-325`}>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Mail size={18} className="text-purple-500" />
+              <h2 className={`text-lg font-semibold ${colors.text}`}>{t('settings.emailTemplates', '邮箱模板配置')}</h2>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  const confirmed = await showConfirm(
+                    t('settings.resetTemplates', '重置模板'),
+                    t('settings.resetTemplatesConfirm', '确定要重置为默认邮箱模板吗？这将覆盖所有自定义模板。')
+                  )
+                  if (confirmed) {
+                    try {
+                      await invoke('reset_email_templates')
+                      await loadEmailTemplates()
+                      await showSuccess(t('settings.resetSuccess', '重置成功'), t('settings.templatesReset', '邮箱模板已重置为默认配置'))
+                    } catch (err) {
+                      await showError(t('settings.resetFailed', '重置失败'), err.toString())
+                    }
+                  }
+                }}
+                className={`btn-icon px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                  isDark ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30' : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                }`}
+              >
+                <RefreshCw size={14} />
+                {t('settings.reset', '重置')}
+              </button>
+              <button
+                onClick={() => setIsAddingTemplate(true)}
+                className={`btn-icon px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                  isDark ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30' : 'bg-purple-100 text-purple-600 hover:bg-purple-200'
+                }`}
+              >
+                <Plus size={14} />
+                {t('settings.addTemplate', '添加模板')}
+              </button>
+            </div>
+          </div>
+          <p className={`text-sm ${colors.textMuted} mb-5`}>
+            {t('settings.emailTemplatesDesc', '配置一键注册功能使用的邮箱服务器信息（IMAP/POP3）')}
+          </p>
+          
+          {/* 模板列表 */}
+          <div className="space-y-3">
+            {emailTemplates.map((template) => (
+              <div
+                key={template.id}
+                className={`${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'} rounded-xl p-4 transition-all`}
+              >
+                {editingTemplate?.id === template.id ? (
+                  // 编辑模式
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={`block text-xs ${colors.textMuted} mb-1`}>模板 ID</label>
+                        <input
+                          type="text"
+                          value={editingTemplate.id}
+                          disabled
+                          className={`w-full px-3 py-2 text-sm border rounded-lg ${colors.text} ${colors.input} opacity-50 cursor-not-allowed`}
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-xs ${colors.textMuted} mb-1`}>模板名称</label>
+                        <input
+                          type="text"
+                          value={editingTemplate.name}
+                          onChange={(e) => setEditingTemplate({ ...editingTemplate, name: e.target.value })}
+                          className={`w-full px-3 py-2 text-sm border rounded-lg ${colors.text} ${colors.input} ${colors.inputFocus} focus:ring-2`}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="col-span-2">
+                        <label className={`block text-xs ${colors.textMuted} mb-1`}>IMAP 服务器</label>
+                        <input
+                          type="text"
+                          value={editingTemplate.imapHost}
+                          onChange={(e) => setEditingTemplate({ ...editingTemplate, imapHost: e.target.value })}
+                          placeholder="imap.example.com"
+                          className={`w-full px-3 py-2 text-sm border rounded-lg ${colors.text} ${colors.input} ${colors.inputFocus} focus:ring-2`}
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-xs ${colors.textMuted} mb-1`}>端口</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={editingTemplate.imapPort}
+                            onChange={(e) => setEditingTemplate({ ...editingTemplate, imapPort: parseInt(e.target.value) || 993 })}
+                            className={`flex-1 px-3 py-2 text-sm border rounded-lg ${colors.text} ${colors.input} ${colors.inputFocus} focus:ring-2`}
+                          />
+                          <label className="flex items-center text-xs">
+                            <input
+                              type="checkbox"
+                              checked={editingTemplate.imapSsl}
+                              onChange={(e) => setEditingTemplate({ ...editingTemplate, imapSsl: e.target.checked })}
+                              className="mr-1"
+                            />
+                            SSL
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="col-span-2">
+                        <label className={`block text-xs ${colors.textMuted} mb-1`}>POP3 服务器</label>
+                        <input
+                          type="text"
+                          value={editingTemplate.pop3Host}
+                          onChange={(e) => setEditingTemplate({ ...editingTemplate, pop3Host: e.target.value })}
+                          placeholder="pop.example.com"
+                          className={`w-full px-3 py-2 text-sm border rounded-lg ${colors.text} ${colors.input} ${colors.inputFocus} focus:ring-2`}
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-xs ${colors.textMuted} mb-1`}>端口</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={editingTemplate.pop3Port}
+                            onChange={(e) => setEditingTemplate({ ...editingTemplate, pop3Port: parseInt(e.target.value) || 995 })}
+                            className={`flex-1 px-3 py-2 text-sm border rounded-lg ${colors.text} ${colors.input} ${colors.inputFocus} focus:ring-2`}
+                          />
+                          <label className="flex items-center text-xs">
+                            <input
+                              type="checkbox"
+                              checked={editingTemplate.pop3Ssl}
+                              onChange={(e) => setEditingTemplate({ ...editingTemplate, pop3Ssl: e.target.checked })}
+                              className="mr-1"
+                            />
+                            SSL
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => setEditingTemplate(null)}
+                        className={`btn-icon px-3 py-1.5 text-sm rounded-lg transition-all ${
+                          isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'
+                        } ${colors.text}`}
+                      >
+                        <X size={14} />
+                        取消
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await invoke('update_email_template', { template: editingTemplate })
+                            await loadEmailTemplates()
+                            setEditingTemplate(null)
+                            await showSuccess(t('settings.saveSuccess', '保存成功'), t('settings.templateUpdated', '邮箱模板已更新'))
+                          } catch (err) {
+                            await showError(t('settings.saveFailed', '保存失败'), err.toString())
+                          }
+                        }}
+                        className="btn-icon px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all flex items-center gap-1"
+                      >
+                        <Save size={14} />
+                        保存
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // 查看模式
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-sm font-medium ${colors.text}`}>{template.name}</span>
+                        <code className={`text-xs px-2 py-0.5 rounded ${isDark ? 'bg-white/10' : 'bg-gray-200'} ${colors.textMuted}`}>
+                          {template.id}
+                        </code>
+                      </div>
+                      <div className={`text-xs ${colors.textMuted} space-y-1`}>
+                        <div>IMAP: {template.imapHost}:{template.imapPort} {template.imapSsl && '(SSL)'}</div>
+                        <div>POP3: {template.pop3Host}:{template.pop3Port} {template.pop3Ssl && '(SSL)'}</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditingTemplate(template)}
+                        className={`btn-icon p-2 rounded-lg transition-all ${
+                          isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+                        }`}
+                        title="编辑"
+                      >
+                        <Edit2 size={14} className={colors.textMuted} />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const confirmed = await showConfirm(
+                            t('settings.deleteTemplate', '删除模板'),
+                            `确定要删除模板"${template.name}"吗？`
+                          )
+                          if (confirmed) {
+                            try {
+                              await invoke('delete_email_template', { id: template.id })
+                              await loadEmailTemplates()
+                              await showSuccess(t('settings.deleteSuccess', '删除成功'), t('settings.templateDeleted', '邮箱模板已删除'))
+                            } catch (err) {
+                              await showError(t('settings.deleteFailed', '删除失败'), err.toString())
+                            }
+                          }
+                        }}
+                        className={`btn-icon p-2 rounded-lg transition-all ${
+                          isDark ? 'hover:bg-red-500/20' : 'hover:bg-red-100'
+                        }`}
+                        title="删除"
+                      >
+                        <Trash2 size={14} className="text-red-500" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            {/* 添加新模板表单 */}
+            {isAddingTemplate && (
+              <div className={`${isDark ? 'bg-blue-500/10' : 'bg-blue-50'} rounded-xl p-4 border ${isDark ? 'border-blue-500/20' : 'border-blue-200'}`}>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={`block text-xs ${colors.textMuted} mb-1`}>模板 ID *</label>
+                      <input
+                        type="text"
+                        value={editingTemplate?.id || ''}
+                        onChange={(e) => setEditingTemplate({ ...editingTemplate, id: e.target.value })}
+                        placeholder="custom-email"
+                        className={`w-full px-3 py-2 text-sm border rounded-lg ${colors.text} ${colors.input} ${colors.inputFocus} focus:ring-2`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs ${colors.textMuted} mb-1`}>模板名称 *</label>
+                      <input
+                        type="text"
+                        value={editingTemplate?.name || ''}
+                        onChange={(e) => setEditingTemplate({ ...editingTemplate, name: e.target.value })}
+                        placeholder="自定义邮箱"
+                        className={`w-full px-3 py-2 text-sm border rounded-lg ${colors.text} ${colors.input} ${colors.inputFocus} focus:ring-2`}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <label className={`block text-xs ${colors.textMuted} mb-1`}>IMAP 服务器 *</label>
+                      <input
+                        type="text"
+                        value={editingTemplate?.imapHost || ''}
+                        onChange={(e) => setEditingTemplate({ ...editingTemplate, imapHost: e.target.value })}
+                        placeholder="imap.example.com"
+                        className={`w-full px-3 py-2 text-sm border rounded-lg ${colors.text} ${colors.input} ${colors.inputFocus} focus:ring-2`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs ${colors.textMuted} mb-1`}>端口 *</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={editingTemplate?.imapPort || 993}
+                          onChange={(e) => setEditingTemplate({ ...editingTemplate, imapPort: parseInt(e.target.value) || 993 })}
+                          className={`flex-1 px-3 py-2 text-sm border rounded-lg ${colors.text} ${colors.input} ${colors.inputFocus} focus:ring-2`}
+                        />
+                        <label className="flex items-center text-xs">
+                          <input
+                            type="checkbox"
+                            checked={editingTemplate?.imapSsl !== false}
+                            onChange={(e) => setEditingTemplate({ ...editingTemplate, imapSsl: e.target.checked })}
+                            className="mr-1"
+                          />
+                          SSL
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <label className={`block text-xs ${colors.textMuted} mb-1`}>POP3 服务器 *</label>
+                      <input
+                        type="text"
+                        value={editingTemplate?.pop3Host || ''}
+                        onChange={(e) => setEditingTemplate({ ...editingTemplate, pop3Host: e.target.value })}
+                        placeholder="pop.example.com"
+                        className={`w-full px-3 py-2 text-sm border rounded-lg ${colors.text} ${colors.input} ${colors.inputFocus} focus:ring-2`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs ${colors.textMuted} mb-1`}>端口 *</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={editingTemplate?.pop3Port || 995}
+                          onChange={(e) => setEditingTemplate({ ...editingTemplate, pop3Port: parseInt(e.target.value) || 995 })}
+                          className={`flex-1 px-3 py-2 text-sm border rounded-lg ${colors.text} ${colors.input} ${colors.inputFocus} focus:ring-2`}
+                        />
+                        <label className="flex items-center text-xs">
+                          <input
+                            type="checkbox"
+                            checked={editingTemplate?.pop3Ssl !== false}
+                            onChange={(e) => setEditingTemplate({ ...editingTemplate, pop3Ssl: e.target.checked })}
+                            className="mr-1"
+                          />
+                          SSL
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => {
+                        setIsAddingTemplate(false)
+                        setEditingTemplate(null)
+                      }}
+                      className={`btn-icon px-3 py-1.5 text-sm rounded-lg transition-all ${
+                        isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'
+                      } ${colors.text}`}
+                    >
+                      <X size={14} />
+                      取消
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!editingTemplate?.id || !editingTemplate?.name || !editingTemplate?.imapHost || !editingTemplate?.pop3Host) {
+                          await showError(t('settings.validationError', '验证失败'), '请填写所有必填字段')
+                          return
+                        }
+                        try {
+                          await invoke('add_email_template', { 
+                            template: {
+                              ...editingTemplate,
+                              imapPort: editingTemplate.imapPort || 993,
+                              pop3Port: editingTemplate.pop3Port || 995,
+                              imapSsl: editingTemplate.imapSsl !== false,
+                              pop3Ssl: editingTemplate.pop3Ssl !== false
+                            }
+                          })
+                          await loadEmailTemplates()
+                          setIsAddingTemplate(false)
+                          setEditingTemplate(null)
+                          await showSuccess(t('settings.addSuccess', '添加成功'), t('settings.templateAdded', '邮箱模板已添加'))
+                        } catch (err) {
+                          await showError(t('settings.addFailed', '添加失败'), err.toString())
+                        }
+                      }}
+                      className="btn-icon px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all flex items-center gap-1"
+                    >
+                      <Plus size={14} />
+                      添加
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {emailTemplates.length === 0 && !isAddingTemplate && (
+            <div className={`text-center py-8 ${colors.textMuted}`}>
+              <Mail size={32} className="mx-auto mb-2 opacity-50" />
+              <p className="text-sm">暂无邮箱模板</p>
+            </div>
           )}
         </section>
 

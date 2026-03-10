@@ -2,6 +2,7 @@
   "nav.home": "Home",
   "nav.accounts": "Accounts",
   "nav.kiroConfig": "Rules Config",
+  "nav.oneClickRegistration": "One-Click Registration",
   "nav.desktopOAuth": "Desktop OAuth",
   "nav.socialIdC": "Google/GitHub/IdC",
   "nav.webOAuth": "Web OAuth",

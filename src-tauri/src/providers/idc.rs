@@ -1,11 +1,11 @@
 // IdC Provider - BuilderId/Enterprise 登录
 // 使用设备授权流程 (Device Authorization Flow)
 
+use super::{AuthProvider, AuthResult, RefreshMetadata};
 use crate::aws_sso_client::{AWSSSOClient, DevicePollResult};
 use crate::browser::open_browser;
-use sha2::{Digest, Sha256};
-use super::{AuthResult, AuthProvider, RefreshMetadata};
 use async_trait::async_trait;
+use sha2::{Digest, Sha256};
 use std::time::Duration;
 
 const BUILDER_ID_START_URL: &str = "https://view.awsapps.com/start";
@@ -46,7 +46,10 @@ impl AuthProvider for IdcProvider {
         let region = &self.region;
         let start_url = self.get_start_url();
 
-        println!("\n[IdC] Starting {} authentication (Device Flow)...", provider);
+        println!(
+            "\n[IdC] Starting {} authentication (Device Flow)...",
+            provider
+        );
         println!("Region: {}", region);
         println!("Start URL: {}", start_url);
 
@@ -60,17 +63,16 @@ impl AuthProvider for IdcProvider {
 
         // Step 3: 发起设备授权
         println!("[IdC] Starting device authorization...");
-        let device_auth = sso_client.start_device_authorization(
-            &client_reg.client_id,
-            &client_reg.client_secret,
-            start_url,
-        ).await?;
-        
+        let device_auth = sso_client
+            .start_device_authorization(&client_reg.client_id, &client_reg.client_secret, start_url)
+            .await?;
+
         println!("[IdC] User Code: {}", device_auth.user_code);
         println!("[IdC] Verification URI: {}", device_auth.verification_uri);
 
         // Step 4: 打开浏览器让用户输入 user_code
-        let verification_url = device_auth.verification_uri_complete
+        let verification_url = device_auth
+            .verification_uri_complete
             .as_ref()
             .unwrap_or(&device_auth.verification_uri);
         println!("[IdC] Opening browser: {}", verification_url);
@@ -79,7 +81,8 @@ impl AuthProvider for IdcProvider {
         // Step 5: 轮询等待用户授权
         println!("[IdC] Waiting for user authorization...");
         let mut interval = device_auth.interval.unwrap_or(5) as u64;
-        let timeout = std::time::Instant::now() + Duration::from_secs(device_auth.expires_in as u64);
+        let timeout =
+            std::time::Instant::now() + Duration::from_secs(device_auth.expires_in as u64);
 
         let token_response = loop {
             if std::time::Instant::now() > timeout {
@@ -88,11 +91,14 @@ impl AuthProvider for IdcProvider {
 
             tokio::time::sleep(Duration::from_secs(interval)).await;
 
-            match sso_client.poll_device_token(
-                &client_reg.client_id,
-                &client_reg.client_secret,
-                &device_auth.device_code,
-            ).await? {
+            match sso_client
+                .poll_device_token(
+                    &client_reg.client_id,
+                    &client_reg.client_secret,
+                    &device_auth.device_code,
+                )
+                .await?
+            {
                 DevicePollResult::Success(token) => {
                     println!("[IdC] Authorization successful!");
                     break token;
@@ -116,15 +122,21 @@ impl AuthProvider for IdcProvider {
         };
 
         // Step 6: 构建 AuthResult
-        let expires_at = chrono::Local::now() + chrono::Duration::seconds(token_response.expires_in);
+        let expires_at =
+            chrono::Local::now() + chrono::Duration::seconds(token_response.expires_in);
         let client_id_hash = Self::compute_client_id_hash(start_url);
 
-        println!("[IdC] {} login successful! {}", provider, serde_json::to_string_pretty(&serde_json::json!({
-            "expiresIn": token_response.expires_in,
-            "expiresAt": expires_at.format("%Y/%m/%d %H:%M:%S").to_string(),
-            "hasIdToken": token_response.id_token.is_some(),
-            "hasSsoSessionId": token_response.aws_sso_app_session_id.is_some(),
-        })).unwrap_or_default());
+        println!(
+            "[IdC] {} login successful! {}",
+            provider,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "expiresIn": token_response.expires_in,
+                "expiresAt": expires_at.format("%Y/%m/%d %H:%M:%S").to_string(),
+                "hasIdToken": token_response.id_token.is_some(),
+                "hasSsoSessionId": token_response.aws_sso_app_session_id.is_some(),
+            }))
+            .unwrap_or_default()
+        );
 
         Ok(AuthResult {
             access_token: token_response.access_token,
@@ -146,17 +158,30 @@ impl AuthProvider for IdcProvider {
         })
     }
 
-    async fn refresh_token(&self, refresh_token: &str, metadata: RefreshMetadata) -> Result<AuthResult, String> {
+    async fn refresh_token(
+        &self,
+        refresh_token: &str,
+        metadata: RefreshMetadata,
+    ) -> Result<AuthResult, String> {
         // IdC 刷新需要 client_id 和 client_secret
-        let client_id = metadata.client_id.ok_or("Client ID is required for IdC token refresh")?;
-        let client_secret = metadata.client_secret.ok_or("Client secret is required for IdC token refresh")?;
+        let client_id = metadata
+            .client_id
+            .ok_or("Client ID is required for IdC token refresh")?;
+        let client_secret = metadata
+            .client_secret
+            .ok_or("Client secret is required for IdC token refresh")?;
         let region = metadata.region.as_deref().unwrap_or(&self.region);
 
         let sso_client = AWSSSOClient::new(region);
-        let token_response = sso_client.refresh_token(&client_id, &client_secret, refresh_token).await?;
+        let token_response = sso_client
+            .refresh_token(&client_id, &client_secret, refresh_token)
+            .await?;
 
-        let expires_at = chrono::Local::now() + chrono::Duration::seconds(token_response.expires_in);
-        let client_id_hash = metadata.client_id_hash.unwrap_or_else(|| Self::compute_client_id_hash(self.get_start_url()));
+        let expires_at =
+            chrono::Local::now() + chrono::Duration::seconds(token_response.expires_in);
+        let client_id_hash = metadata
+            .client_id_hash
+            .unwrap_or_else(|| Self::compute_client_id_hash(self.get_start_url()));
 
         Ok(AuthResult {
             access_token: token_response.access_token,

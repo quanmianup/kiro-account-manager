@@ -114,14 +114,20 @@ impl CodeWhispererClient {
     }
 
     /// 获取限额信息 (用于 IdC/BuilderId token)
-    pub async fn get_usage_limits(&self, access_token: &str) -> Result<CodeWhispererUsageResponse, String> {
+    pub async fn get_usage_limits(
+        &self,
+        access_token: &str,
+    ) -> Result<CodeWhispererUsageResponse, String> {
         let url = format!(
             "{}/getUsageLimits?isEmailRequired=true&origin=AI_EDITOR&resourceType=AGENTIC_REQUEST",
             CODEWHISPERER_API
         );
 
         let kiro_version = "0.6.18";
-        let x_amz_user_agent = format!("aws-sdk-js/1.0.0 KiroIDE-{}-{}", kiro_version, self.machine_id);
+        let x_amz_user_agent = format!(
+            "aws-sdk-js/1.0.0 KiroIDE-{}-{}",
+            kiro_version, self.machine_id
+        );
         let user_agent = format!(
             "aws-sdk-js/1.0.0 ua/2.1 os/windows lang/js md/nodejs#20.16.0 api/codewhispererruntime#1.0.0 m/E KiroIDE-{}-{}",
             kiro_version, self.machine_id
@@ -130,7 +136,8 @@ impl CodeWhispererClient {
         println!("\n[CodeWhisperer] GET USAGE LIMITS");
         println!("URL: {}", url);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", access_token))
             .header("x-amz-user-agent", &x_amz_user_agent)
@@ -166,7 +173,6 @@ impl CodeWhispererClient {
             }
         }
 
-        serde_json::from_str(&text)
-            .map_err(|e| format!("Parse failed: {}", e))
+        serde_json::from_str(&text).map_err(|e| format!("Parse failed: {}", e))
     }
 }

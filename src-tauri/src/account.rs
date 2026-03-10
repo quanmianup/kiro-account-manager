@@ -1,7 +1,7 @@
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use std::path::PathBuf;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,7 +32,6 @@ pub struct Account {
     // 原始 usage API 响应
     pub usage_data: Option<serde_json::Value>,
 }
-
 
 impl Account {
     pub fn new(email: String, label: String) -> Self {
@@ -71,7 +70,10 @@ impl AccountStore {
     pub fn new() -> Self {
         let file_path = Self::get_storage_path();
         let accounts = Self::load_from_file(&file_path);
-        Self { accounts, file_path }
+        Self {
+            accounts,
+            file_path,
+        }
     }
 
     fn get_storage_path() -> PathBuf {
@@ -103,6 +105,11 @@ impl AccountStore {
 
     pub fn get_all(&self) -> Vec<Account> {
         self.accounts.clone()
+    }
+
+    pub fn add(&mut self, account: Account) {
+        self.accounts.push(account);
+        self.save_to_file();
     }
 
     pub fn delete(&mut self, id: &str) -> bool {

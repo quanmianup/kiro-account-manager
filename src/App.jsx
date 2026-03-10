@@ -9,6 +9,8 @@ import KiroConfig from './components/KiroConfig/index'
 import About from './components/About'
 import Login from './components/Login'
 import AuthCallback from './components/AuthCallback'
+import OneClickRegistration from './components/OneClickRegistration/index'
+import ErrorBoundary from './components/ErrorBoundary'
 // import UpdateChecker from './components/UpdateChecker'
 
 import { useTheme } from './contexts/ThemeContext'
@@ -139,25 +141,36 @@ function App() {
       return
     }
     
-    // 监听登录成功事件
-    const unlisten = listen('login-success', (event) => {
-      console.log('Login success in App:', event.payload)
-      checkAuth()
-      setActiveMenu('token')
-    })
+    let unlistenLogin
+    let unlistenSettings
     
-    // 监听设置变化，重启定时器
-    const unlistenSettings = listen('settings-changed', () => {
-      console.log('[AutoRefresh] 设置已变化，重启定时器')
-      startAutoRefreshTimer()
-    })
+    // 监听登录成功事件
+    const setupListeners = async () => {
+      unlistenLogin = await listen('login-success', (event) => {
+        console.log('Login success in App:', event.payload)
+        checkAuth()
+        setActiveMenu('token')
+      })
+      
+      // 监听设置变化，重启定时器
+      unlistenSettings = await listen('settings-changed', () => {
+        console.log('[AutoRefresh] 设置已变化，重启定时器')
+        startAutoRefreshTimer()
+      })
+    }
+    
+    setupListeners()
     
     // 启动自动刷新定时器
     startAutoRefreshTimer()
     
     return () => { 
-      unlisten.then(fn => fn())
-      unlistenSettings.then(fn => fn())
+      if (unlistenLogin && typeof unlistenLogin === 'function') {
+        unlistenLogin()
+      }
+      if (unlistenSettings && typeof unlistenSettings === 'function') {
+        unlistenSettings()
+      }
       if (refreshTimerRef.current) {
         clearInterval(refreshTimerRef.current)
       }
@@ -188,22 +201,46 @@ function App() {
   }
 
   const renderContent = () => {
-    switch (activeMenu) {
-      case 'home': return <Home onNavigate={setActiveMenu} />
-      case 'token': return <AccountManager />
-      case 'kiro-config': return <KiroConfig />
-      case 'login': return <Login onLogin={(user) => { handleLogin(user); setActiveMenu('token'); }} />
-      case 'callback': return <AuthCallback />
-      case 'settings': return <Settings />
-      case 'about': return <About />
-      default: return <Home />
+    try {
+      console.log('[App] Rendering menu:', activeMenu)
+      switch (activeMenu) {
+        case 'home': return <Home key="home" onNavigate={setActiveMenu} />
+        case 'token': return <AccountManager key="token" />
+        case 'kiro-config': return <KiroConfig key="kiro-config" />
+        case 'one-click-registration': return <OneClickRegistration key="one-click-registration" onNavigate={setActiveMenu} />
+        case 'login': return <Login key="login" onLogin={(user) => { handleLogin(user); setActiveMenu('token'); }} />
+        case 'callback': return <AuthCallback key="callback" />
+        case 'settings': return <Settings key="settings" onNavigate={setActiveMenu} />
+        case 'about': return <About key="about" />
+        default: 
+          console.warn('[App] Unknown menu:', activeMenu)
+          return <Home key="default" />
+      }
+    } catch (error) {
+      console.error('[App] Error rendering content:', error)
+      return (
+        <div className="h-full flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-500 mb-4">页面加载失败</p>
+            <button 
+              onClick={() => setActiveMenu('home')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+            >
+              返回首页
+            </button>
+          </div>
+        </div>
+      )
     }
   }
 
   if (loading) {
     return (
-      <div className="h-screen bg-[#0d0d0d] flex items-center justify-center">
-        <div className="text-white">加载中...</div>
+      <div className="h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="text-white text-sm">加载中...</div>
+        </div>
       </div>
     )
   }
@@ -217,7 +254,9 @@ function App() {
         onLogout={handleLogout}
       />
       <main className="flex-1 overflow-hidden">
-        {renderContent()}
+        <ErrorBoundary key={activeMenu}>
+          {renderContent()}
+        </ErrorBoundary>
       </main>
       
       {/* <UpdateChecker /> */}

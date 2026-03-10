@@ -118,7 +118,6 @@ pub struct BonusInfo {
     pub status: Option<String>,
 }
 
-
 // ============================================================
 // 桌面端 API 方法
 // ============================================================
@@ -129,18 +128,18 @@ pub async fn refresh_token_desktop(refresh_token: &str) -> Result<DesktopRefresh
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| format!("Failed to create client: {}", e))?;
-    
+
     let body = serde_json::json!({
         "refreshToken": refresh_token
     });
-    
+
     // 重试机制
     let mut last_error = String::new();
     for attempt in 0..3 {
         if attempt > 0 {
             tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
         }
-        
+
         match client
             .post(format!("{}/refreshToken", DESKTOP_AUTH_API))
             .header("Content-Type", "application/json")
@@ -152,29 +151,26 @@ pub async fn refresh_token_desktop(refresh_token: &str) -> Result<DesktopRefresh
             Ok(response) => {
                 let status = response.status();
                 let text = response.text().await.unwrap_or_default();
-                
+
                 println!("\n[Desktop] RefreshToken Response:");
                 println!("Status: {}", status);
                 // 格式化打印 JSON
                 match serde_json::from_str::<serde_json::Value>(&text) {
-                    Ok(json) => {
-                        match serde_json::to_string_pretty(&json) {
-                            Ok(pretty) => println!("{}", pretty),
-                            Err(_) => println!("{}", text),
-                        }
-                    }
+                    Ok(json) => match serde_json::to_string_pretty(&json) {
+                        Ok(pretty) => println!("{}", pretty),
+                        Err(_) => println!("{}", text),
+                    },
                     Err(_) => println!("{}", text),
                 }
-                
+
                 if !status.is_success() {
                     if status.as_u16() == 401 {
                         return Err("RefreshToken 已过期或无效".to_string());
                     }
                     return Err(format!("RefreshToken failed ({})", status));
                 }
-                
-                return serde_json::from_str(&text)
-                    .map_err(|e| format!("Parse failed: {}", e));
+
+                return serde_json::from_str(&text).map_err(|e| format!("Parse failed: {}", e));
             }
             Err(e) => {
                 last_error = format!("网络错误: {}", e);
@@ -182,7 +178,7 @@ pub async fn refresh_token_desktop(refresh_token: &str) -> Result<DesktopRefresh
             }
         }
     }
-    
+
     Err(last_error)
 }
 
@@ -192,7 +188,7 @@ pub async fn get_usage_limits_desktop(access_token: &str) -> Result<DesktopUsage
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| format!("Failed to create client: {}", e))?;
-    
+
     let url = format!(
         "{}/getUsageLimits?isEmailRequired=true&origin=AI_EDITOR&profileArn={}",
         DESKTOP_USAGE_API,
@@ -202,14 +198,14 @@ pub async fn get_usage_limits_desktop(access_token: &str) -> Result<DesktopUsage
     // println!("\n[7] GET USAGE LIMITS REQUEST");
     // println!("URL: {}", url);
     // println!("Token: {}", access_token);
-    
+
     // 重试机制
     let mut last_error = String::new();
     for attempt in 0..3 {
         if attempt > 0 {
             tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
         }
-        
+
         match client
             .get(&url)
             .header("Authorization", format!("Bearer {}", access_token))
@@ -220,21 +216,19 @@ pub async fn get_usage_limits_desktop(access_token: &str) -> Result<DesktopUsage
             Ok(response) => {
                 let status = response.status();
                 let text = response.text().await.unwrap_or_default();
-                
+
                 println!("\n[Social] GET USAGE LIMITS RESPONSE");
                 println!("Status: {}", status);
                 // 格式化打印 JSON
                 match serde_json::from_str::<serde_json::Value>(&text) {
-                    Ok(json) => {
-                        match serde_json::to_string_pretty(&json) {
-                            Ok(pretty) => println!("{}", pretty),
-                            Err(_) => println!("{}", text),
-                        }
-                    }
+                    Ok(json) => match serde_json::to_string_pretty(&json) {
+                        Ok(pretty) => println!("{}", pretty),
+                        Err(_) => println!("{}", text),
+                    },
                     Err(_) => println!("{}", text),
                 }
                 println!();
-                
+
                 if !status.is_success() {
                     // 解析错误响应，提取 reason 字段
                     if let Ok(error_json) = serde_json::from_str::<serde_json::Value>(&text) {
@@ -244,9 +238,8 @@ pub async fn get_usage_limits_desktop(access_token: &str) -> Result<DesktopUsage
                     }
                     return Err(format!("GetUsageLimits failed ({})", status));
                 }
-                
-                return serde_json::from_str(&text)
-                    .map_err(|e| format!("Parse failed: {}", e));
+
+                return serde_json::from_str(&text).map_err(|e| format!("Parse failed: {}", e));
             }
             Err(e) => {
                 last_error = format!("网络错误: {}", e);
@@ -254,6 +247,6 @@ pub async fn get_usage_limits_desktop(access_token: &str) -> Result<DesktopUsage
             }
         }
     }
-    
+
     Err(last_error)
 }

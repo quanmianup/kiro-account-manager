@@ -1,10 +1,9 @@
 // Powers 管理（读取/安装/卸载 Powers）
-
 use crate::mcp::McpConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -107,25 +106,22 @@ impl PowersRegistry {
     /// 读取注册表
     pub fn load() -> Result<Self, String> {
         let path = Self::registry_path().ok_or("无法获取用户目录")?;
-        
+
         if !path.exists() {
             return Ok(Self::default());
         }
-        
-        let content = fs::read_to_string(&path)
-            .map_err(|e| format!("读取注册表失败: {}", e))?;
-        
-        serde_json::from_str(&content)
-            .map_err(|e| format!("解析注册表失败: {}", e))
+
+        let content = fs::read_to_string(&path).map_err(|e| format!("读取注册表失败: {}", e))?;
+
+        serde_json::from_str(&content).map_err(|e| format!("解析注册表失败: {}", e))
     }
 
     /// 保存注册表
     pub fn save(&self) -> Result<(), String> {
         let path = Self::registry_path().ok_or("无法获取用户目录")?;
-        let content = serde_json::to_string_pretty(self)
-            .map_err(|e| format!("序列化失败: {}", e))?;
-        fs::write(&path, content)
-            .map_err(|e| format!("写入失败: {}", e))
+        let content =
+            serde_json::to_string_pretty(self).map_err(|e| format!("序列化失败: {}", e))?;
+        fs::write(&path, content).map_err(|e| format!("写入失败: {}", e))
     }
 
     /// 获取已安装的 Powers 列表
@@ -144,10 +140,12 @@ impl PowersRegistry {
 
     /// 安装 Power
     pub fn install_power(&mut self, name: &str) -> Result<PowerInfo, String> {
-        let power = self.powers.get(name)
+        let power = self
+            .powers
+            .get(name)
             .ok_or_else(|| format!("Power '{}' 不存在", name))?
             .clone();
-        
+
         if power.installed {
             return Err(format!("Power '{}' 已安装", name));
         }
@@ -155,49 +153,50 @@ impl PowersRegistry {
         let powers_dir = Self::powers_dir().ok_or("无法获取 Powers 目录")?;
         let repos_dir = powers_dir.join("repos");
         let installed_dir = powers_dir.join("installed");
-        
+
         // 获取仓库信息
-        let clone_url = power.repository_clone_url.as_ref()
+        let clone_url = power
+            .repository_clone_url
+            .as_ref()
             .ok_or("缺少仓库 clone URL")?;
         let branch = power.repository_branch.as_deref().unwrap_or("main");
         let path_in_repo = power.path_in_repo.as_deref().unwrap_or(&power.name);
-        
+
         // 仓库本地路径
         let repo_local_dir = repos_dir.join(name);
-        
+
         // 如果仓库不存在，先 clone
         if !repo_local_dir.exists() {
             fs::create_dir_all(&repos_dir).ok();
-            
+
             let output = Command::new("git")
                 .args(["clone", "--depth", "1", "--branch", branch, clone_url])
                 .arg(&repo_local_dir)
                 .output()
                 .map_err(|e| format!("执行 git clone 失败: {}", e))?;
-            
+
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 return Err(format!("git clone 失败: {}", stderr));
             }
         }
-        
+
         // 复制 power 文件到 installed 目录
         let source_dir = repo_local_dir.join(path_in_repo);
         let target_dir = installed_dir.join(name);
-        
+
         if !source_dir.exists() {
             return Err(format!("源目录不存在: {:?}", source_dir));
         }
-        
-        fs::create_dir_all(&target_dir)
-            .map_err(|e| format!("创建目录失败: {}", e))?;
-        
+
+        fs::create_dir_all(&target_dir).map_err(|e| format!("创建目录失败: {}", e))?;
+
         // 复制文件
         copy_dir_contents(&source_dir, &target_dir)?;
-        
+
         // 获取 commit sha
         let commit_sha = get_git_commit_sha(&repo_local_dir);
-        
+
         // 更新注册表
         let now = chrono::Utc::now().to_rfc3339();
         if let Some(p) = self.powers.get_mut(name) {
@@ -210,25 +209,31 @@ impl PowersRegistry {
                 clone_id: Some(format!("clone-{}", name)),
             });
         }
-        
+
         // 更新 repoSources
-        self.repo_sources.insert(format!("clone-{}", name), RepoSource {
-            name: name.to_string(),
-            source_type: "git".to_string(),
-            enabled: true,
-            branch: branch.to_string(),
-            last_commit_sha: self.powers.get(name).and_then(|p| p.installed_commit_sha.clone()),
-            clone_url: clone_url.to_string(),
-            path_in_repo: path_in_repo.to_string(),
-            local_path: Some(repo_local_dir.to_string_lossy().to_string()),
-            cloned_at: Some(now),
-            power_count: 1,
-            powers: vec![name.to_string()],
-        });
-        
+        self.repo_sources.insert(
+            format!("clone-{}", name),
+            RepoSource {
+                name: name.to_string(),
+                source_type: "git".to_string(),
+                enabled: true,
+                branch: branch.to_string(),
+                last_commit_sha: self
+                    .powers
+                    .get(name)
+                    .and_then(|p| p.installed_commit_sha.clone()),
+                clone_url: clone_url.to_string(),
+                path_in_repo: path_in_repo.to_string(),
+                local_path: Some(repo_local_dir.to_string_lossy().to_string()),
+                cloned_at: Some(now),
+                power_count: 1,
+                powers: vec![name.to_string()],
+            },
+        );
+
         self.last_updated = Some(chrono::Utc::now().to_rfc3339());
         self.save()?;
-        
+
         // 同步 MCP 配置
         let mcp_json_path = target_dir.join("mcp.json");
         if mcp_json_path.exists() {
@@ -238,31 +243,32 @@ impl PowersRegistry {
                 }
             }
         }
-        
+
         self.powers.get(name).cloned().ok_or("更新失败".to_string())
     }
 
     /// 卸载 Power
     pub fn uninstall_power(&mut self, name: &str) -> Result<(), String> {
-        let power = self.powers.get(name)
+        let power = self
+            .powers
+            .get(name)
             .ok_or_else(|| format!("Power '{}' 不存在", name))?;
-        
+
         if !power.installed {
             return Err(format!("Power '{}' 未安装", name));
         }
 
         let powers_dir = Self::powers_dir().ok_or("无法获取 Powers 目录")?;
         let installed_dir = powers_dir.join("installed").join(name);
-        
+
         // 删除已安装目录
         if installed_dir.exists() {
-            fs::remove_dir_all(&installed_dir)
-                .map_err(|e| format!("删除目录失败: {}", e))?;
+            fs::remove_dir_all(&installed_dir).map_err(|e| format!("删除目录失败: {}", e))?;
         }
-        
+
         // 移除 MCP 配置
         McpConfig::remove_power_mcp(name).ok();
-        
+
         // 更新注册表
         if let Some(p) = self.powers.get_mut(name) {
             p.installed = false;
@@ -270,22 +276,22 @@ impl PowersRegistry {
             p.install_path = None;
             // 保留 installed_commit_sha 以便重新安装时使用
         }
-        
+
         self.last_updated = Some(chrono::Utc::now().to_rfc3339());
         self.save()?;
-        
+
         Ok(())
     }
 }
 
 /// 复制目录内容
-fn copy_dir_contents(src: &PathBuf, dst: &PathBuf) -> Result<(), String> {
+fn copy_dir_contents(src: &PathBuf, dst: &Path) -> Result<(), String> {
     for entry in fs::read_dir(src).map_err(|e| format!("读取目录失败: {}", e))? {
         let entry = entry.map_err(|e| format!("读取条目失败: {}", e))?;
         let path = entry.path();
         let file_name = path.file_name().ok_or("无效文件名")?;
         let dst_path = dst.join(file_name);
-        
+
         if path.is_dir() {
             // 跳过 .git 目录
             if file_name == ".git" {
@@ -294,8 +300,7 @@ fn copy_dir_contents(src: &PathBuf, dst: &PathBuf) -> Result<(), String> {
             fs::create_dir_all(&dst_path).ok();
             copy_dir_contents(&path, &dst_path)?;
         } else {
-            fs::copy(&path, &dst_path)
-                .map_err(|e| format!("复制文件失败: {}", e))?;
+            fs::copy(&path, &dst_path).map_err(|e| format!("复制文件失败: {}", e))?;
         }
     }
     Ok(())

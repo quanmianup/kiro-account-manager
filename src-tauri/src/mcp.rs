@@ -67,70 +67,62 @@ impl McpConfig {
     /// 读取配置文件（保留原始 JSON）
     pub fn load_raw() -> Result<Value, String> {
         let path = Self::config_path().ok_or("无法获取用户目录")?;
-        
+
         if !path.exists() {
             return Ok(serde_json::json!({"mcpServers": {}}));
         }
-        
-        let content = fs::read_to_string(&path)
-            .map_err(|e| format!("读取配置文件失败: {}", e))?;
-        
-        serde_json::from_str(&content)
-            .map_err(|e| format!("解析配置文件失败: {}", e))
+
+        let content = fs::read_to_string(&path).map_err(|e| format!("读取配置文件失败: {}", e))?;
+
+        serde_json::from_str(&content).map_err(|e| format!("解析配置文件失败: {}", e))
     }
 
     /// 读取配置文件
     pub fn load() -> Result<Self, String> {
         let path = Self::config_path().ok_or("无法获取用户目录")?;
-        
+
         if !path.exists() {
             return Ok(Self::default());
         }
-        
-        let content = fs::read_to_string(&path)
-            .map_err(|e| format!("读取配置文件失败: {}", e))?;
-        
-        serde_json::from_str(&content)
-            .map_err(|e| format!("解析配置文件失败: {}", e))
+
+        let content = fs::read_to_string(&path).map_err(|e| format!("读取配置文件失败: {}", e))?;
+
+        serde_json::from_str(&content).map_err(|e| format!("解析配置文件失败: {}", e))
     }
 
     /// 保存原始 JSON
     pub fn save_raw(value: &Value) -> Result<(), String> {
         let path = Self::config_path().ok_or("无法获取用户目录")?;
-        
+
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("创建目录失败: {}", e))?;
+            fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
         }
-        
-        let content = serde_json::to_string_pretty(value)
-            .map_err(|e| format!("序列化配置失败: {}", e))?;
-        
-        fs::write(&path, content)
-            .map_err(|e| format!("写入配置文件失败: {}", e))
+
+        let content =
+            serde_json::to_string_pretty(value).map_err(|e| format!("序列化配置失败: {}", e))?;
+
+        fs::write(&path, content).map_err(|e| format!("写入配置文件失败: {}", e))
     }
 
     /// 保存配置文件
     pub fn save(&self) -> Result<(), String> {
         let path = Self::config_path().ok_or("无法获取用户目录")?;
-        
+
         // 确保目录存在
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("创建目录失败: {}", e))?;
+            fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
         }
-        
-        let content = serde_json::to_string_pretty(self)
-            .map_err(|e| format!("序列化配置失败: {}", e))?;
-        
-        fs::write(&path, content)
-            .map_err(|e| format!("写入配置文件失败: {}", e))
+
+        let content =
+            serde_json::to_string_pretty(self).map_err(|e| format!("序列化配置失败: {}", e))?;
+
+        fs::write(&path, content).map_err(|e| format!("写入配置文件失败: {}", e))
     }
 
     /// 添加 Power 的 MCP 配置
     pub fn add_power_mcp(power_name: &str, mcp_config: Value) -> Result<(), String> {
         let mut raw = Self::load_raw()?;
-        
+
         // 确保 powers.mcpServers 存在
         if raw.get("powers").is_none() {
             raw["powers"] = serde_json::json!({"mcpServers": {}});
@@ -138,7 +130,7 @@ impl McpConfig {
         if raw["powers"].get("mcpServers").is_none() {
             raw["powers"]["mcpServers"] = serde_json::json!({});
         }
-        
+
         // 读取 power 的 mcp.json 并合并
         if let Some(servers) = mcp_config.get("mcpServers").and_then(|s| s.as_object()) {
             for (name, config) in servers {
@@ -146,21 +138,21 @@ impl McpConfig {
                 raw["powers"]["mcpServers"][key] = config.clone();
             }
         }
-        
+
         Self::save_raw(&raw)
     }
 
     /// 移除 Power 的 MCP 配置
     pub fn remove_power_mcp(power_name: &str) -> Result<(), String> {
         let mut raw = Self::load_raw()?;
-        
+
         if let Some(powers) = raw.get_mut("powers") {
             if let Some(servers) = powers.get_mut("mcpServers").and_then(|s| s.as_object_mut()) {
                 let prefix = format!("power-{}-", power_name);
                 servers.retain(|k, _| !k.starts_with(&prefix));
             }
         }
-        
+
         Self::save_raw(&raw)
     }
 }

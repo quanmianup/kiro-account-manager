@@ -53,7 +53,10 @@ pub async fn exchange_social_code_for_token(
     let body = response.text().await.unwrap_or_default();
 
     if !status.is_success() {
-        return Err(format!("OAuth token exchange failed ({}): {}", status, body));
+        return Err(format!(
+            "OAuth token exchange failed ({}): {}",
+            status, body
+        ));
     }
 
     let token_resp: DesktopRefreshResponse = serde_json::from_str(&body)

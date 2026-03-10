@@ -11,6 +11,7 @@ function useMenuItems() {
     { id: 'home', label: t('nav.home'), icon: Home },
     { id: 'token', label: t('nav.accounts'), icon: Key },
     { id: 'kiro-config', label: t('nav.kiroConfig'), icon: Settings2 },
+    { id: 'one-click-registration', label: t('nav.oneClickRegistration'), icon: User },
     { id: 'login', label: t('nav.desktopOAuth'), icon: LogIn, desc: t('nav.socialIdC') },
     { id: 'settings', label: t('nav.settings'), icon: Settings },
     { id: 'about', label: t('nav.about'), icon: Info },
@@ -22,9 +23,20 @@ function Sidebar({ activeMenu, onMenuChange }) {
   const [showThemeMenu, setShowThemeMenu] = useState(false)
   const [showLangMenu, setShowLangMenu] = useState(false)
   const [version, setVersion] = useState('')
+  const [isChanging, setIsChanging] = useState(false)
   const { theme, setTheme, colors } = useTheme()
   const { locale, setLocale, loading: langLoading } = useI18n()
   const menuItems = useMenuItems()
+  
+  // 防抖处理菜单切换
+  const handleMenuClick = (menuId) => {
+    if (isChanging || menuId === activeMenu) return
+    console.log('[Sidebar] Menu clicked:', menuId)
+    setIsChanging(true)
+    onMenuChange(menuId)
+    // 300ms 后允许再次切换
+    setTimeout(() => setIsChanging(false), 300)
+  }
 
   useEffect(() => {
     invoke('get_kiro_local_token').then(setLocalToken).catch(() => {})
@@ -59,8 +71,9 @@ function Sidebar({ activeMenu, onMenuChange }) {
           return (
             <button
               key={item.id}
-              onClick={() => onMenuChange(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all rounded-xl group animate-slide-in-left ${
+              onClick={() => handleMenuClick(item.id)}
+              disabled={isChanging}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all rounded-xl group animate-slide-in-left disabled:opacity-50 ${
                 isActive ? `${colors.sidebarActive} font-medium shadow-sm` : `${colors.sidebarText} ${colors.sidebarHover}`
               }`}
               style={{ animationDelay: `${0.15 + index * 0.05}s` }}

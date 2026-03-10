@@ -1,8 +1,8 @@
-﻿// Web OAuth Provider - Google/Github Web 登录
+// Web OAuth Provider - Google/Github Web 登录
 // 用于 Web OAuth 流程
 
-use serde::{Deserialize, Serialize};
 use super::AuthResult;
+use serde::{Deserialize, Serialize};
 
 /// Web OAuth 初始化结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,7 +47,7 @@ impl WebOAuthProvider {
         let state = uuid::Uuid::new_v4().to_string();
         let code_verifier = generate_code_verifier();
         let code_challenge = generate_code_challenge(&code_verifier);
-        
+
         let idp = match self.provider_id.as_str() {
             "Github" => "Github",
             "Google" => "Google",
@@ -76,10 +76,12 @@ impl WebOAuthProvider {
         code_verifier: &str,
         expected_state: &str,
     ) -> Result<AuthResult, String> {
+        // 验证 state
         if returned_state != expected_state {
             return Err("State mismatch".to_string());
         }
 
+        // 交换 token
         let client = reqwest::Client::new();
         let response = client
             .post("https://api.kiro.dev/oauth/token")
@@ -102,11 +104,18 @@ impl WebOAuthProvider {
             .await
             .map_err(|e| format!("Failed to parse token response: {}", e))?;
 
-        let access_token = token_data["accessToken"].as_str().ok_or("No accessToken in response")?.to_string();
-        let refresh_token = token_data["refreshToken"].as_str().ok_or("No refreshToken in response")?.to_string();
+        let access_token = token_data["accessToken"]
+            .as_str()
+            .ok_or("No accessToken in response")?
+            .to_string();
+        let refresh_token = token_data["refreshToken"]
+            .as_str()
+            .ok_or("No refreshToken in response")?
+            .to_string();
         let expires_in = token_data["expiresIn"].as_i64().unwrap_or(3600);
         let csrf_token = token_data["csrfToken"].as_str().map(|s| s.to_string());
         let profile_arn = token_data["profileArn"].as_str().map(|s| s.to_string());
+
         let expires_at = chrono::Local::now() + chrono::Duration::seconds(expires_in);
 
         Ok(AuthResult {
@@ -130,11 +139,19 @@ impl WebOAuthProvider {
     }
 
     /// 刷新 token
-    pub async fn refresh_token_impl(&self, _access_token: &str, _csrf_token: &str, refresh_token: &str) -> Result<AuthResult, String> {
+    pub async fn refresh_token_impl(
+        &self,
+        _access_token: &str,
+        _csrf_token: &str,
+        refresh_token: &str,
+    ) -> Result<AuthResult, String> {
         let client = reqwest::Client::new();
         let response = client
             .post("https://api.kiro.dev/oauth/refresh")
-            .json(&serde_json::json!({"refresh_token": refresh_token, "grant_type": "refresh_token"}))
+            .json(&serde_json::json!({
+                "refresh_token": refresh_token,
+                "grant_type": "refresh_token",
+            }))
             .send()
             .await
             .map_err(|e| format!("Token refresh failed: {}", e))?;
@@ -144,12 +161,23 @@ impl WebOAuthProvider {
             return Err(format!("Token refresh failed: {}", error_text));
         }
 
-        let token_data: serde_json::Value = response.json().await.map_err(|e| format!("Failed to parse refresh response: {}", e))?;
-        let access_token = token_data["accessToken"].as_str().ok_or("No accessToken in response")?.to_string();
-        let refresh_token = token_data["refreshToken"].as_str().ok_or("No refreshToken in response")?.to_string();
+        let token_data: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse refresh response: {}", e))?;
+
+        let access_token = token_data["accessToken"]
+            .as_str()
+            .ok_or("No accessToken in response")?
+            .to_string();
+        let refresh_token = token_data["refreshToken"]
+            .as_str()
+            .ok_or("No refreshToken in response")?
+            .to_string();
         let expires_in = token_data["expiresIn"].as_i64().unwrap_or(3600);
         let csrf_token = token_data["csrfToken"].as_str().map(|s| s.to_string());
         let profile_arn = token_data["profileArn"].as_str().map(|s| s.to_string());
+
         let expires_at = chrono::Local::now() + chrono::Duration::seconds(expires_in);
 
         Ok(AuthResult {
@@ -176,49 +204,95 @@ impl WebOAuthProvider {
 pub struct KiroWebPortalClient;
 
 impl KiroWebPortalClient {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 
-    pub async fn get_user_info(&self, access_token: &str, _csrf_token: &str, _refresh_token: &str, _idp: &str) -> Result<UserInfo, String> {
+    /// 获取用户信息
+    pub async fn get_user_info(
+        &self,
+        access_token: &str,
+        _csrf_token: &str,
+        _refresh_token: &str,
+        _idp: &str,
+    ) -> Result<UserInfo, String> {
         let client = reqwest::Client::new();
-        let response = client.get("https://api.kiro.dev/user/info").bearer_auth(access_token).send().await.map_err(|e| format!("Get user info failed: {}", e))?;
+        let response = client
+            .get("https://api.kiro.dev/user/info")
+            .bearer_auth(access_token)
+            .send()
+            .await
+            .map_err(|e| format!("Get user info failed: {}", e))?;
+
         if !response.status().is_success() {
-            return Err(format!("Get user info failed: {}", response.text().await.unwrap_or_default()));
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(format!("Get user info failed: {}", error_text));
         }
-        let user_data: serde_json::Value = response.json().await.map_err(|e| format!("Failed to parse user info: {}", e))?;
+
+        let user_data: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse user info: {}", e))?;
+
         Ok(UserInfo {
             email: user_data["email"].as_str().map(|s| s.to_string()),
-            user_id: user_data["userId"].as_str().unwrap_or("unknown").to_string(),
+            user_id: user_data["userId"]
+                .as_str()
+                .unwrap_or("unknown")
+                .to_string(),
         })
     }
 
-    pub async fn get_user_usage_and_limits(&self, access_token: &str, _csrf_token: &str, _refresh_token: &str, _idp: &str) -> Result<UserUsage, String> {
+    /// 获取用户配额信息
+    pub async fn get_user_usage_and_limits(
+        &self,
+        access_token: &str,
+        _csrf_token: &str,
+        _refresh_token: &str,
+        _idp: &str,
+    ) -> Result<UserUsage, String> {
         let client = reqwest::Client::new();
-        let response = client.get("https://api.kiro.dev/user/usage").bearer_auth(access_token).send().await.map_err(|e| format!("Get user usage failed: {}", e))?;
+        let response = client
+            .get("https://api.kiro.dev/user/usage")
+            .bearer_auth(access_token)
+            .send()
+            .await
+            .map_err(|e| format!("Get user usage failed: {}", e))?;
+
         if !response.status().is_success() {
-            return Err(format!("Get user usage failed: {}", response.text().await.unwrap_or_default()));
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(format!("Get user usage failed: {}", error_text));
         }
-        let usage_data: serde_json::Value = response.json().await.map_err(|e| format!("Failed to parse usage data: {}", e))?;
+
+        let usage_data: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse usage data: {}", e))?;
+
         Ok(UserUsage {
             main_quota: usage_data["mainQuota"].as_i64(),
             trial_quota: usage_data["trialQuota"].as_i64(),
             reward_quota: usage_data["rewardQuota"].as_i64(),
-            subscription_type: usage_data["subscriptionType"].as_str().map(|s| s.to_string()),
+            subscription_type: usage_data["subscriptionType"]
+                .as_str()
+                .map(|s| s.to_string()),
         })
     }
 }
 
+// PKCE 辅助函数
 fn generate_code_verifier() -> String {
+    use base64::{engine::general_purpose, Engine as _};
     use rand::Rng;
-    use base64::{Engine as _, engine::general_purpose};
     let random_bytes: Vec<u8> = (0..32).map(|_| rand::thread_rng().gen()).collect();
     general_purpose::URL_SAFE_NO_PAD.encode(&random_bytes)
 }
 
 fn generate_code_challenge(verifier: &str) -> String {
-    use sha2::{Sha256, Digest};
-    use base64::{Engine as _, engine::general_purpose};
+    use base64::{engine::general_purpose, Engine as _};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(verifier.as_bytes());
     let hash = hasher.finalize();
-    general_purpose::URL_SAFE_NO_PAD.encode(&hash)
+    general_purpose::URL_SAFE_NO_PAD.encode(hash)
 }
